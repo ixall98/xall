@@ -1,92 +1,50 @@
 import os
-import math
 import re
 from telethon import Button, events
 from AyiinXd import CMD_HANDLER as cmd
-from AyiinXd import CMD_HELP, SUDO_USERS
+from AyiinXd import CMD_HELP, tgbot
 from AyiinXd.ayiin import ayiin_cmd
-from telethon import TelegramClient
 
-# Mengambil BOT_TOKEN dan BOT_USERNAME dari config vars
-API_ID = os.getenv('API_ID')  # Pastikan sudah ada di config vars
-API_HASH = os.getenv('API_HASH')  # Pastikan sudah ada di config vars
-BOT_TOKEN = os.getenv('BOT_TOKEN')  # Pastikan sudah ada di config vars
+if tgbot:
 
-MODUL_PER_HALAMAN = 10
+    def paginate_help(page_number, loaded_modules, prefix):
+        number_of_rows = 5
+        number_of_cols = 2
+        modules = sorted(loaded_modules)
+        max_num_pages = len(modules) // (number_of_rows * number_of_cols) + \
+            (1 if len(modules) % (number_of_rows * number_of_cols) != 0 else 0)
+        modules = [Button.inline(mod, data=f"ub_modul_{mod}")
+                   for mod in modules]
+        pairs = list(zip(modules[::2], modules[1::2]))
+        if len(modules) % 2 == 1:
+            pairs.append((modules[-1],))
+        pairs.append(
+            (Button.inline("⪻", data=f"ub_page{page_number-1}"),
+             Button.inline("⪼", data=f"ub_page{page_number+1}"))
+        ) if max_num_pages > 1 else None
+        return pairs
 
-# Inisialisasi tgbot menggunakan token dari config vars
-tgbot = TelegramClient('session_name', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+    @ayiin_cmd(pattern="module$")
+    async def show_modules(event):
+        if event.sender_id != event.client.uid and event.sender_id not in event.client._sudo:
+            return
+        buttons = paginate_help(0, CMD_HELP, cmd)
+        await event.client.send_message(event.chat_id, "• **Daftar Modul:**", buttons=buttons)
 
-@ayiin_cmd(pattern="module$")
-async def show_all_modules(event):
-    if event.sender_id != event.client.uid:
-        return
-    modul_list = sorted(list(CMD_HELP.keys()))
-    total_page = math.ceil(len(modul_list) / MODUL_PER_HALAMAN)
-    page = 0
-    await event.edit(
-        "**Daftar Modul Ubot**",
-        buttons=get_modul_buttons(modul_list, page, total_page),
-    )
+    @tgbot.on(events.CallbackQuery(data=re.compile(b"ub_modul_(.*)")))
+    async def callback_modul_handler(event):
+        modul = event.data_match.group(1).decode("UTF-8")
+        if modul in CMD_HELP:
+            text = str(CMD_HELP[modul])
+            await event.edit(
+                text[:4096],  # limit telegram
+                buttons=[Button.inline("« ʙᴀᴄᴋ", data="ub_page0")]
+            )
+        else:
+            await event.answer("Modul tidak ditemukan.", alert=True)
 
-
-def get_modul_buttons(modul_list, page, total_page):
-    start = page * MODUL_PER_HALAMAN
-    end = start + MODUL_PER_HALAMAN
-    current_moduls = modul_list[start:end]
-
-    rows = []
-    for modul in current_moduls:
-        rows.append([Button.inline(modul, data=f"ub_modul_{modul}")])
-
-    nav = []
-    if page > 0:
-        nav.append(Button.inline("« Back", data=f"ub_page_{page - 1}"))
-    if page < total_page - 1:
-        nav.append(Button.inline("Next »", data=f"ub_page_{page + 1}"))
-    if nav:
-        rows.append(nav)
-
-    return rows
-
-
-@tgbot.on(events.callbackquery.CallbackQuery(data=re.compile(b"ub_page_(\d+)")))
-async def on_page_callback(event):
-    if event.query.user_id != event._bot.uid and event.query.user_id not in SUDO_USERS:
-        return
-
-    page = int(event.data_match.group(1).decode("UTF-8"))
-    modul_list = sorted(list(CMD_HELP.keys()))
-    total_page = math.ceil(len(modul_list) / MODUL_PER_HALAMAN)
-
-    await event.edit(
-        "**Daftar Modul Ubot**",
-        buttons=get_modul_buttons(modul_list, page, total_page),
-    )
-
-
-@tgbot.on(events.callbackquery.CallbackQuery(data=re.compile(b"ub_modul_(.*)")))
-async def on_modul_callback(event):
-    if event.query.user_id != event._bot.uid and event.query.user_id not in SUDO_USERS:
-        return
-
-    modul_name = event.data_match.group(1).decode("UTF-8")
-    if modul_name not in CMD_HELP:
-        return await event.answer("Modul tidak ditemukan.", alert=True)
-
-    help_str = str(CMD_HELP[modul_name])
-    if len(help_str) > 950:
-        help_str = (
-            help_str[:950]
-            + "...\n\n"
-            + f"Baca teks berikutnya ketik `{cmd}help {modul_name}`"
-        )
-
-    await event.edit(
-        help_str,
-        buttons=[Button.inline("« Kembali", data="ub_page_0")]
-    )
-
-# Pastikan tgbot start berjalan
-if __name__ == "__main__":
-    tgbot.run_until_disconnected()
+    @tgbot.on(events.CallbackQuery(data=re.compile(b"ub_page(\d+)")))
+    async def callback_page_handler(event):
+        page = int(event.data_match.group(1).decode("UTF-8"))
+        buttons = paginate_help(page, CMD_HELP, cmd)
+        await event.edit("• **Daftar Modul:**", buttons=buttons)
