@@ -1,12 +1,12 @@
 import time
 import os
 import asyncpg
-from datetime import datetime, timedelta
+from datetime import datetime
 from AyiinXd import CMD_HANDLER as cmd
 from AyiinXd import CMD_HELP, DB_URI
 from AyiinXd.ayiin import ayiin_cmd
 
-DURASI_UBOT = os.environ.get("DURASI_UBOT", "DURASI_UBOT").lower()
+DURASI_UBOT = os.getenv("DURASI_UBOT", "30hari").lower()
 DATABASE_URL = DB_URI
 
 # Konversi durasi ke detik
@@ -63,7 +63,7 @@ async def _(event):
             sisa = total_durasi - (now - start_time)
 
             if sisa <= 0:
-                await event.edit("**Durasi kamu sudah habis silahkan hubungi @jPipis untuk perpanjang userbot**")
+                await event.edit("**Durasi kamu sudah habis. Silakan hubungi @jPipis untuk perpanjangan userbot.**")
             else:
                 habis_timestamp = start_time + total_durasi
                 habis_tanggal = datetime.fromtimestamp(habis_timestamp).strftime("%d %B %Y")
@@ -86,6 +86,6 @@ async def _(event):
 CMD_HELP.update({
     "cek_durasi": f"**Plugin :** `cek_durasi`\
     \n\n  »  **Perintah :** `{cmd}cekdurasi`\
-    \n  »  **Fungsi :** Cek sisa waktu durasi userbot\
+    \n  »  **Fungsi :** Untuk mengecek durasi userbot.\
 "
 })
