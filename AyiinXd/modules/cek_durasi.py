@@ -74,11 +74,11 @@ async def _(event):
                 seconds = sisa % 60
 
                 await event.edit(
-                    f"**Informasi Userbot kamu:**\n"
-                    f"**Durasi:** `{jenis}`\n"
-                    f"**Sisa Durasi:** `{days} hari, {hours} jam, {minutes} menit, {seconds} detik}`\n"
-                    f"**Habis Tanggal:** `{habis_tanggal}`"
-                )
+    f"**Informasi Userbot kamu:**\n"
+    f"**Durasi:** `{jenis}`\n"
+    f"**Sisa Durasi:** `{days} hari, {hours} jam, {minutes} menit, {seconds} detik`\n"
+    f"**Habis Tanggal:** `{habis_tanggal}`"
+    )
         await conn.close()
     except Exception as e:
         await event.edit(f"**Terjadi kesalahan:**\n`{str(e)}`")
