@@ -5,7 +5,6 @@ from AyiinXd import CMD_HANDLER as cmd
 from AyiinXd import CMD_HELP, DB_URI
 from AyiinXd.ayiin import ayiin_cmd
 
-# Ganti LISENSI_JENIS jadi DURASI_UBOT
 DURASI_UBOT = os.environ.get("DURASI_UBOT", "30hari").lower()
 DATABASE_URL = DB_URI
 
@@ -14,8 +13,8 @@ DATABASE_URL = DB_URI
 async def _(event):
     try:
         conn = await asyncpg.connect(DATABASE_URL)
-        
-        # Cek apakah tabel ada
+
+        # Buat tabel jika belum ada
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS bot_info (
                 id INTEGER PRIMARY KEY,
@@ -24,11 +23,10 @@ async def _(event):
             );
         """)
 
-        # Cek apakah ada data lisensi, jika belum insert data default
+        # Ambil data lisensi
         row = await conn.fetchrow("SELECT start_time, jenis FROM bot_info WHERE id=1")
-        
+
         if not row:
-            # Insert data default lisensi (bisa 30 hari, 7 hari, atau lifetime)
             await conn.execute("""
                 INSERT INTO bot_info (id, start_time, jenis)
                 VALUES (1, $1, $2)
@@ -37,7 +35,6 @@ async def _(event):
             await conn.close()
             return
 
-        # Ambil data dari database
         jenis = row['jenis']
         start_time = row['start_time']
         now = int(time.time())
@@ -56,7 +53,11 @@ async def _(event):
                 minutes = (sisa % 3600) // 60
                 seconds = sisa % 60
 
-                await event.edit(f"**Lisensi:** `{jenis}`\n**Sisa Durasi:** `{days} hari, {hours} jam, {minutes} menit, {seconds} detik}`")
+                msg = (
+                    f"**Lisensi:** `{jenis}`\n"
+                    f"**Sisa Durasi:** `{days} hari, {hours} jam, {minutes} menit, {seconds} detik`"
+                )
+                await event.edit(msg)
 
         await conn.close()
     except Exception as e:
