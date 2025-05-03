@@ -31,20 +31,38 @@ if tgbot:
         buttons = paginate_help(0, CMD_HELP, cmd)
         await event.client.send_message(event.chat_id, "• **Daftar Modul:**", buttons=buttons)
 
-    @tgbot.on(events.CallbackQuery(data=re.compile(b"ub_modul_(.*)")))
-    async def callback_modul_handler(event):
-        modul = event.data_match.group(1).decode("UTF-8")
-        if modul in CMD_HELP:
-            text = str(CMD_HELP[modul])
-            await event.edit(
-                text[:4096],  # limit telegram
-                buttons=[Button.inline("« ʙᴀᴄᴋ", data="ub_page0")]
-            )
-        else:
-            await event.answer("Modul tidak ditemukan.", alert=True)
+    @tgbot.on(events.callbackquery.CallbackQuery(data=re.compile(b"ub_modul_(.*)")))
+        async def on_plug_in_callback_query_handler(event):
+            if event.query.user_id == uid or event.query.user_id in SUDO_USERS:
+                modul_name = event.data_match.group(1).decode("UTF-8")
 
-    @tgbot.on(events.CallbackQuery(data=re.compile(b"ub_page(\d+)")))
-    async def callback_page_handler(event):
-        page = int(event.data_match.group(1).decode("UTF-8"))
-        buttons = paginate_help(page, CMD_HELP, cmd)
-        await event.edit("• **Daftar Modul:**", buttons=buttons)
+                cmdhel = str(CMD_HELP[modul_name])
+                if len(cmdhel) > 950:
+                    help_string = (
+                        str(CMD_HELP[modul_name])
+                        .replace("`", "")
+                        .replace("**", "")[:950]
+                        + "..."
+                        + "\n\nBaca Teks Berikutnya Ketik .help "
+                        + modul_name
+                        + " "
+                    )
+                else:
+                    help_string = (str(CMD_HELP[modul_name]).replace(
+                        "`", "").replace("**", ""))
+
+                reply_pop_up_alert = (
+                    help_string
+                    if help_string is not None
+                    else "{} Tidak ada dokumen yang telah ditulis untuk modul.".format(
+                        modul_name
+                    )
+                )
+                await event.edit(
+                    reply_pop_up_alert, buttons=[
+                        Button.inline("ʙᴀᴄᴋ", data="reopen")]
+                )
+
+            else:
+                reply_pop_up_alert = f"Kamu Tidak diizinkan, ini Userbot Milik {owner}"
+                await event.answer(reply_pop_up_alert, cache_time=0, alert=True)
