@@ -5,7 +5,7 @@ from AyiinXd import CMD_HANDLER as cmd
 from AyiinXd import CMD_HELP, DB_URI
 from AyiinXd.ayiin import ayiin_cmd
 
-LISENSI_DEFAULT = os.environ.get("DURASI_UBOT", "30hari").lower()
+LISENSI_DEFAULT = os.environ.get("DURASI_UBOT", "DURASI_UBOT").lower()
 DATABASE_URL = DB_URI
 
 
