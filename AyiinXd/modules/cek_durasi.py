@@ -1,7 +1,7 @@
 import time
 import asyncpg
 import os
-from AyiinXd.ayiin.events import ayiin_cmd
+from AyiinXd.ayiin import ayiin_cmd
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
