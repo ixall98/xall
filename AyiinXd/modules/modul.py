@@ -1,15 +1,21 @@
 import os
 import math
 import re
-
 from telethon import Button, events
-
 from AyiinXd import CMD_HANDLER as cmd
-from AyiinXd import CMD_HELP, tgbot, SUDO_USERS
+from AyiinXd import CMD_HELP, SUDO_USERS
 from AyiinXd.ayiin import ayiin_cmd
+from telethon import TelegramClient
+
+# Mengambil BOT_TOKEN dan BOT_USERNAME dari config vars
+API_ID = os.getenv('API_ID')  # Pastikan sudah ada di config vars
+API_HASH = os.getenv('API_HASH')  # Pastikan sudah ada di config vars
+BOT_TOKEN = os.getenv('BOT_TOKEN')  # Pastikan sudah ada di config vars
 
 MODUL_PER_HALAMAN = 10
 
+# Inisialisasi tgbot menggunakan token dari config vars
+tgbot = TelegramClient('session_name', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
 @ayiin_cmd(pattern="module$")
 async def show_all_modules(event):
@@ -79,4 +85,8 @@ async def on_modul_callback(event):
     await event.edit(
         help_str,
         buttons=[Button.inline("« Kembali", data="ub_page_0")]
-  )
+    )
+
+# Pastikan tgbot start berjalan
+if __name__ == "__main__":
+    tgbot.run_until_disconnected()
