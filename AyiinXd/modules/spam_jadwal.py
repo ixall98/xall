@@ -132,3 +132,24 @@ async def stop_spam(event):
         await event.edit(f"Spam `{nama}` dihentikan.")
     else:
         await event.edit("Tidak ada spam aktif dengan nama itu.")
+
+
+CMD_HELP.update({
+    "spam_jadwal": f"**Plugin :** `spam_jadwal`\
+\n\n  ➥ `.setspamtime <jam>`\
+\n     Untuk menjadwalkan spam pada jam tertentu.\
+\n     **Contoh:** `.setspamtime 14:00`\
+\n\n  ➥ `.setspamday <hari> <jam>`\
+\n     Untuk menjadwalkan spam di hari dan jam tertentu.\
+\n     **Contoh:** `.setspamday senin 09:00`\
+\n\n  ➥ `.setspaminterval <start-jam> <end-jam> <interval-menit>`\
+\n     Untuk spam berkala dalam rentang jam tertentu.\
+\n     **Contoh:** `.setspaminterval 08:00 12:00 30`\
+\n\n  ➥ `.stoplist <nama_list>`\
+\n     Untuk menghentikan spam terjadwal dari list tertentu.\
+\n\n  ➥ `.viewspam`\
+\n     Melihat semua jadwal spam yang aktif.\
+\n\n**Note:**\
+\n• Semua mode support spam teks & forward.\
+\n• Jangan lupa set grup target & isi teks/link spam seperti biasa."
+})
