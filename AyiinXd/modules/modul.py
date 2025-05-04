@@ -4,7 +4,7 @@ from telethon import Button, events
 from AyiinXd import CMD_HANDLER as cmd
 from AyiinXd import CMD_HELP, tgbot
 from AyiinXd.ayiin import ayiin_cmd
-from AyiinXd import CMD_HELP, tgbot, SUDO_USERS, owner, uid
+from AyiinXd import SUDO_USERS, owner, uid
 
 if tgbot:
 
