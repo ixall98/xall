@@ -91,3 +91,4 @@ youtube-search
 youtube-search-python==1.4.9
 zipfile38
 asyncpg
+apscheduler
