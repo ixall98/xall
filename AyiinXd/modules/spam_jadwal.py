@@ -1,4 +1,4 @@
-from AyiinUbot import CMD_HANDLER as cmd
+from AyiinXd import CMD_HANDLER as cmd
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
