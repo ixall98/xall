@@ -1,0 +1,8 @@
+{
+  "-1001234567890": {
+    "status": true,
+    "delay": 2.0,
+    "count": 10,
+    "text": "contoh spam teks"
+  }
+}
