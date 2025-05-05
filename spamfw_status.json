@@ -1,0 +1,9 @@
+{
+  "-1001234567890": {
+    "status": true,
+    "delay": 3.0,
+    "count": 5,
+    "channel": "channelusername",
+    "msg_id": 123
+  }
+}
