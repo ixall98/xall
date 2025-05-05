@@ -11,6 +11,7 @@ from telethon.tl import functions, types
 from telethon.tl.functions.messages import GetStickerSetRequest
 from telethon.utils import get_display_name
 
+from AyiinXd import ayiin
 from AyiinXd import BOTLOG_CHATID
 from AyiinXd import CMD_HANDLER as cmd
 from AyiinXd import CMD_HELP, BLACKLIST_CHAT, LOGS
