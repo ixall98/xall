@@ -6,6 +6,7 @@
 import asyncio
 import os
 import json
+from telethon import events
 from telethon.tl import functions, types
 from telethon.tl.functions.messages import GetStickerSetRequest
 from telethon.utils import get_display_name
