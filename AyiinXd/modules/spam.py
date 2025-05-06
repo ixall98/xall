@@ -233,26 +233,39 @@ async def tmeme(event):
             )
 
 
+# Define the file paths for both spam statuses
+SPAM_STATUS_FILE = "spam_status.json"
+SPAMFW_STATUS_FILE = "spamfw_status.json"
+
 SPAM_STATUS = {}
 SPAMFW_STATUS = {}
-SPAM_DATA = {}
 
-SPAM_DATA_FILE = "spam_data.json"
+# Load the spam status from the json files when starting up
+if os.path.exists(SPAM_STATUS_FILE):
+    with open(SPAM_STATUS_FILE, "r") as f:
+        SPAM_STATUS = json.load(f)
+    for chat_id, data in SPAM_STATUS.items():
+        if data.get("active"):
+            # Mark chat as active for text spam
+            SPAM_STATUS[int(chat_id)] = data
 
-# Load spam data dari file saat startup
-if os.path.exists(SPAM_DATA_FILE):
-    with open(SPAM_DATA_FILE, "r") as f:
-        SPAM_DATA = json.load(f)
-    for chat_id, data in SPAM_DATA.items():
-        if data["type"] == "text":
-            SPAM_STATUS[int(chat_id)] = True
-        elif data["type"] == "fw":
-            SPAMFW_STATUS[int(chat_id)] = True
+if os.path.exists(SPAMFW_STATUS_FILE):
+    with open(SPAMFW_STATUS_FILE, "r") as f:
+        SPAMFW_STATUS = json.load(f)
+    for chat_id, data in SPAMFW_STATUS.items():
+        if data.get("active"):
+            # Mark chat as active for forward spam
+            SPAMFW_STATUS[int(chat_id)] = data
 
-# Simpan spam data ke file
-def save_spam_data():
-    with open(SPAM_DATA_FILE, "w") as f:
-        json.dump(SPAM_DATA, f)
+# Function to save spam status to json files
+def save_spam_status():
+    # Save text spam status to file
+    with open(SPAM_STATUS_FILE, "w") as f:
+        json.dump(SPAM_STATUS, f, indent=4)
+
+    # Save forward spam status to file
+    with open(SPAMFW_STATUS_FILE, "w") as f:
+        json.dump(SPAMFW_STATUS, f, indent=4)
 
 
 @ayiin_cmd(pattern="(delayspam|dspam) ([\\s\\S]*)")
