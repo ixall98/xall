@@ -10,6 +10,7 @@ from telethon import events
 from telethon.tl import functions, types
 from telethon.tl.functions.messages import GetStickerSetRequest
 from telethon.utils import get_display_name
+from asyncio import create_task
 
 from AyiinXd import bot
 from AyiinXd import BOTLOG_CHATID
@@ -241,21 +242,20 @@ SPAM_STATUS = {}
 SPAMFW_STATUS = {}
 
 # Load the spam status from the json files when starting up
-if os.path.exists(SPAM_STATUS_FILE):
-    with open(SPAM_STATUS_FILE, "r") as f:
-        SPAM_STATUS = json.load(f)
-    for chat_id, data in SPAM_STATUS.items():
-        if data.get("active"):
-            # Mark chat as active for text spam
-            SPAM_STATUS[int(chat_id)] = data
 
-if os.path.exists(SPAMFW_STATUS_FILE):
-    with open(SPAMFW_STATUS_FILE, "r") as f:
-        SPAMFW_STATUS = json.load(f)
-    for chat_id, data in SPAMFW_STATUS.items():
-        if data.get("active"):
-            # Mark chat as active for forward spam
-            SPAMFW_STATUS[int(chat_id)] = data
+# Auto-resume dspam
+for chat_id, data in SPAM_STATUS.items():
+    if data.get("active") and data.get("text"):
+        delay = data.get("delay", 5)
+        teks = data.get("text", "")
+        create_task(start_spam(int(chat_id), teks, delay))
+
+# Auto-resume dspamfw
+for chat_id, data in SPAMFW_STATUS.items():
+    if data.get("active") and data.get("link"):
+        delay = data.get("delay", 5)
+        link = data.get("link")
+        create_task(start_forward_spam(int(chat_id), link, delay))
 
 # Function to save spam status to json files
 def save_spam_status():
