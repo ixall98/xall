@@ -11,7 +11,6 @@ from telethon.tl import functions, types
 from telethon.tl.functions.messages import GetStickerSetRequest
 from telethon.utils import get_display_name
 from asyncio import create_task
-from telethon.tl.functions.channels import GetFullChannel
 from telethon.tl.types import ChannelParticipantsAdmins
 
 from AyiinXd import bot
