@@ -235,92 +235,85 @@ async def tmeme(event):
             )
 
 
+
+# Lokasi file penyimpanan list grup
+GC_FILE = "dspam_gc.json"
+if not os.path.exists(GC_FILE):
+    with open(GC_FILE, "w") as f:
+        json.dump({}, f)
+
+def load_gc():
+    with open(GC_FILE, "r") as f:
+        return json.load(f)
+
+def save_gc(data):
+    with open(GC_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
 SPAM_STATUS = {}
 SPAMFW_STATUS = {}
 
-SPAM_GC_FILE = "spam_gc.json"
+@ayiin_cmd(pattern="setgc ([^ ]+) (.+)")
+async def set_gc(event):
+    listname, groups = event.pattern_match.group(1), event.pattern_match.group(2).split()
+    data = load_gc()
+    data[listname] = groups
+    save_gc(data)
+    await event.edit(f"✅ Grup untuk list `{listname}` disimpan.")
 
-def load_gc():
-    if not os.path.exists(SPAM_GC_FILE):
-        return []
-    with open(SPAM_GC_FILE, "r") as f:
-        return json.load(f)
+@ayiin_cmd(pattern="delgc ([^ ]+) ([^ ]+)")
+async def del_gc(event):
+    listname, target = event.pattern_match.group(1), event.pattern_match.group(2)
+    data = load_gc()
+    if listname not in data or target not in data[listname]:
+        return await event.edit("⚠️ Grup tidak ditemukan di list.")
+    data[listname].remove(target)
+    if not data[listname]:
+        del data[listname]
+    save_gc(data)
+    await event.edit(f"✅ Grup `{target}` dihapus dari list `{listname}`.")
 
-def save_gc(gcs):
-    with open(SPAM_GC_FILE, "w") as f:
-        json.dump(gcs, f)
+@ayiin_cmd(pattern="viewgc$")
+async def view_gc(event):
+    data = load_gc()
+    if not data:
+        return await event.edit("📭 Belum ada list grup yang disimpan.")
+    txt = "**📋 List Grup Spam:**\n"
+    for name, grups in data.items():
+        txt += f"\n**{name}**:\n"
+        for g in grups:
+            txt += f"• `{g}`\n"
+    await event.edit(txt)
+    
+@ayiin_cmd(pattern="(delayspam|dspam|dspm) ([\\s\\S]*)")
+async def delayspam(event):
+    args = event.pattern_match.group(2).split(" ", 3)
+    if len(args) < 4:
+        return await eod(event, "⚠️ Format salah. Gunakan `.delayspam <delay> <jumlah> <namalist> <teks>`")
 
-@ayiin_cmd(pattern="setgcspam(?:\\s+([\\s\\S]+))?")
-async def set_gc_spam(event):
-    args = event.pattern_match.group(1)
-    if not args:
-        return await event.edit("⚠️ Kirim username grup yang mau diset.\nContoh: `.setgcspam @gc1 @gc2`")
-    
-    group_list = args.split()
-    saved = load_gc()
-    added = []
-    
-    for g in group_list:
-        if g not in saved:
-            saved.append(g)
-            added.append(g)
-    save_gc(saved)
-    
-    if added:
-        await event.edit(f"✅ Grup ditambahkan: {' '.join(added)}")
-    else:
-        await event.edit("⚠️ Tidak ada grup baru ditambahkan.")
-
-@ayiin_cmd(pattern="delgcspam(?:\\s+([\\s\\S]+))?")
-async def del_gc_spam(event):
-    args = event.pattern_match.group(1)
-    if not args:
-        return await event.edit("⚠️ Kirim username grup yang mau dihapus.\nContoh: `.delgcspam @gc1`")
-    
-    group_list = args.split()
-    saved = load_gc()
-    removed = []
-    
-    for g in group_list:
-        if g in saved:
-            saved.remove(g)
-            removed.append(g)
-    save_gc(saved)
-    
-    if removed:
-        await event.edit(f"✅ Grup dihapus: {' '.join(removed)}")
-    else:
-        await event.edit("⚠️ Grup tidak ditemukan dalam daftar.")
-
-@ayiin_cmd(pattern="(delayspam|dspam) ([\\s\\S]*)")
-async def dlyspam(event):
-    input_str = event.pattern_match.group(2).split(" ", 2)
+    delay, jumlah, listname, text = args
     try:
-        sleeptimem = float(input_str[0])
-        counter = int(input_str[1])
-        spam_text = input_str[2] if len(input_str) > 2 else (await event.get_reply_message()).text
-    except:
-        return await event.edit("⚠️ Format salah.\nContoh: `.delayspam 3 5 tes`")
-    
-    targets = load_gc()
-    SPAM_STATUS[event.chat_id] = True
-    await event.edit("▶️ Memulai delay spam...")
-    
-    for i in range(counter):
-        if not SPAM_STATUS.get(event.chat_id, False):
-            break
-        if targets:
-            for gc in targets:
-                try:
-                    await event.client.send_message(gc, spam_text)
-                except:
-                    pass
-        else:
-            await event.client.send_message(event.chat_id, spam_text)
-        await asyncio.sleep(sleeptimem)
-    
-    if event.chat_id in SPAM_STATUS:
-        del SPAM_STATUS[event.chat_id]
+        delay = float(delay)
+        jumlah = int(jumlah)
+    except ValueError:
+        return await eod(event, "⚠️ Delay dan jumlah harus berupa angka.")
+
+    data = load_gc()
+    if listname not in data:
+        return await eod(event, f"❌ List `{listname}` tidak ditemukan.")
+
+    await event.edit("🚀 Memulai delay spam...")
+    for _ in range(jumlah):
+        for gc in data[listname]:
+            try:
+                await event.client.send_message(gc, text)
+                await asyncio.sleep(delay)
+            except Exception as e:
+                await event.client.send_message(event.chat_id, f"Gagal kirim ke {gc}: {e}")
+        await asyncio.sleep(delay)
+
+    if BOTLOG_CHATID:
+        await event.client.send_message(BOTLOG_CHATID, f"✅ `.delayspam` ke list `{listname}` selesai.")
 
 @ayiin_cmd(pattern="stopdspam(?:\\s+([\\s\\S]+))?")
 async def stop_dlyspam(event):
@@ -335,43 +328,42 @@ async def stop_dlyspam(event):
     SPAM_STATUS[target] = False
     await event.edit(f"🛑 Delay spam dihentikan di `{target}`.")
 
-@ayiin_cmd(pattern="(delayspamfw|dspamfw) ([\\s\\S]*)")
-async def dlyspamfw(event):
-    input_str = event.pattern_match.group(2).split(" ", 2)
+@ayiin_cmd(pattern="(delayspamfw|dspamfw|dpmfw) ([\\s\\S]*)")
+async def delayspamfw(event):
+    args = event.pattern_match.group(2).split(" ", 3)
+    if len(args) < 4:
+        return await eod(event, "⚠️ Format salah. Gunakan `.delayspamfw <delay> <jumlah> <namalist> <link_post>`")
+
+    delay, jumlah, listname, link = args
     try:
-        sleeptimem = float(input_str[0])
-        counter = int(input_str[1])
-        link = input_str[2]
-    except:
-        return await event.edit("⚠️ Format salah.\nContoh: `.delayspamfw 3 5 https://t.me/xxxx/123`")
+        delay = float(delay)
+        jumlah = int(jumlah)
+    except ValueError:
+        return await eod(event, "⚠️ Delay dan jumlah harus berupa angka.")
+
+    data = load_gc()
+    if listname not in data:
+        return await eod(event, f"❌ List `{listname}` tidak ditemukan.")
 
     try:
-        channel = link.split("/")[3]
-        msg_id = int(link.split("/")[-1])
-        entity = await event.client.get_entity(channel)
-        msg = await event.client.get_messages(entity, ids=msg_id)
-    except:
-        return await event.edit("❌ Link post salah atau tidak bisa diakses.")
+        channel_username = link.split("/")[3]
+        message_id = int(link.split("/")[-1])
+        channel = await event.client.get_entity(channel_username)
+    except Exception:
+        return await eod(event, "❌ Link tidak valid.")
 
-    targets = load_gc()
-    SPAMFW_STATUS[event.chat_id] = True
-    await event.edit("▶️ Memulai forward spam...")
+    await event.edit("🚀 Memulai forward spam...")
+    for _ in range(jumlah):
+        for gc in data[listname]:
+            try:
+                await event.client.forward_messages(gc, message_id, channel)
+                await asyncio.sleep(delay)
+            except Exception as e:
+                await event.client.send_message(event.chat_id, f"Gagal kirim ke {gc}: {e}")
+        await asyncio.sleep(delay)
 
-    for _ in range(counter):
-        if not SPAMFW_STATUS.get(event.chat_id, False):
-            break
-        if targets:
-            for gc in targets:
-                try:
-                    await event.client.forward_messages(gc, msg)
-                except:
-                    pass
-        else:
-            await event.client.forward_messages(event.chat_id, msg)
-        await asyncio.sleep(sleeptimem)
-
-    if event.chat_id in SPAMFW_STATUS:
-        del SPAMFW_STATUS[event.chat_id]
+    if BOTLOG_CHATID:
+        await event.client.send_message(BOTLOG_CHATID, f"✅ `.delayspamfw` ke list `{listname}` selesai.")
 
 @ayiin_cmd(pattern="stopfw(?:\\s+([\\s\\S]+))?")
 async def stop_fw(event):
