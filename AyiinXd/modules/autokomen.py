@@ -1,6 +1,7 @@
 from telethon import events
-from AyiinXd import client
-from AyiinXd.events import ayiin_cmd
+from AyiinXd import CMD_HANDLER as cmd
+from AyiinXd import CMD_HELP
+from AyiinXd import ayiin_cmd
 
 # Struktur data: 
 # {channel_id: {filter_text: response_text}}
