@@ -1,6 +1,6 @@
 from AyiinXd import CMD_HANDLER as cmd, CMD_HELP, bot
 from AyiinXd.events import ayiin_cmd
-from telethon import events
+from telethon.event import NewMessage
 from .sql_helper import autokomen_sql as db
 
 
