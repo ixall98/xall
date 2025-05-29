@@ -80,9 +80,9 @@ async def _(event):
     await event.edit(msg)
 
 
-@bot.on(events.NewMessage)
-async def _(event):
-    if not event.is_channel or not event.chat or not hasattr(event.chat, "username"):
+@bot.on(events.NewMessage())
+async def auto_komen_handler(event):
+    if not event.is_channel or event.out:
         return
 
     chat_username = getattr(event.chat, "username", "").lower()
