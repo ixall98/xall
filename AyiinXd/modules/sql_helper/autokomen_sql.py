@@ -1,5 +1,9 @@
-from sqlalchemy import Column, String
-from AyiinXd import BASE, SESSION
+try:
+    from AyiinXd.modules.sql_helper import BASE, SESSION
+except ImportError:
+    raise AttributeError
+
+from sqlalchemy import BigInteger, Column, Numeric, String, UnicodeText
 
 class AutoKomen(BASE):
     __tablename__ = "auto_komen"
