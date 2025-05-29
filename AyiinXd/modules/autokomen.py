@@ -1,77 +1,81 @@
-# modules/autokomen.py
 from AyiinXd import CMD_HANDLER as cmd, CMD_HELP, bot
-from AyiinXd.ayiin import eor
+from AyiinXd.events import ayiin_cmd
 from telethon import events
-from . import db
+from modules.sql_helper import autokomen_sql as db
 
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
 async def _(event):
-    ch = event.pattern_match.group(1).strip()
-    if not ch:
-        return await eor(event, "⚠️ Masukin username channel!")
-    return await eor(event, f"✅ Channel `{ch}` disiapkan, sekarang set filter & komen-nya pakai `.setfilter` dan `.setkomen`.")
-
-@ayiin_cmd(pattern="setfilter(?: |$)(.*)")
-async def _(event):
-    tr = event.pattern_match.group(1).strip()
-    if not tr:
-        return await eor(event, "⚠️ Masukin teks trigger!")
-    event.client._autokomen_last_filter = tr
-    await eor(event, f"✅ Trigger diset: `{tr}`. Sekarang set komen dengan `.setkomen`.")
-
-@ayiin_cmd(pattern="setkomen(?: |$)(.*)")
-async def _(event):
-    komen = event.pattern_match.group(1).strip()
-    if not komen:
-        return await eor(event, "⚠️ Masukin isi komen!")
-    try:
-        trigger = event.client._autokomen_last_filter
-    except AttributeError:
-        return await eor(event, "⚠️ Set trigger dulu dengan `.setfilter`")
-    reply = await event.get_reply_message()
-    if not reply or not reply.chat.username:
-        return await eor(event, "⚠️ Reply ke postingan dari channel target.")
-    ch = reply.chat.username
-    db.add_komen(ch, trigger, komen)
-    await eor(event, f"✅ Auto komen aktif untuk channel `{ch}` jika mengandung: `{trigger}`")
+    channel_id = event.pattern_match.group(1)
+    if not channel_id:
+        return await event.edit("Contoh: .setch @namachannel")
+    if db.get_komen(channel_id):
+        return await event.edit("Channel ini udah ada.")
+    db.add_komen(channel_id, "", "")
+    await event.edit(f"Berhasil tambah channel `{channel_id}` ke daftar auto komen.")
 
 @ayiin_cmd(pattern="delch(?: |$)(.*)")
 async def _(event):
-    ch = event.pattern_match.group(1).strip()
-    db.delete_channel(ch)
-    await eor(event, f"🗑️ Semua komen untuk channel `{ch}` dihapus.")
+    channel_id = event.pattern_match.group(1)
+    db.delete_komen(channel_id)
+    await event.edit(f"Berhasil hapus channel `{channel_id}`.")
 
-@ayiin_cmd(pattern="delfilter(?: |$)(.*)")
+@ayiin_cmd(pattern="setfilter(?: |$)(.*)")
 async def _(event):
-    fl = event.pattern_match.group(1).strip()
-    db.delete_trigger(fl)
-    await eor(event, f"🗑️ Filter `{fl}` dihapus dari auto komen.")
+    trigger = event.pattern_match.group(1)
+    reply = db.get_komen("last")
+    if not reply:
+        return await event.edit("Set channel dulu dong")
+    reply.trigger = trigger
+    db.SESSION.commit()
+    await event.edit(f"Trigger filter diset: `{trigger}`")
 
-@ayiin_cmd(pattern="delkomen(?: |$)(.*)")
+@ayiin_cmd(pattern="delfilter$")
 async def _(event):
-    km = event.pattern_match.group(1).strip()
-    db.delete_komen_text(km)
-    await eor(event, f"🗑️ Komen `{km}` dihapus dari auto komen.")
+    komen = db.get_komen("last")
+    if not komen:
+        return await event.edit("Ga ada filter.")
+    komen.trigger = ""
+    db.SESSION.commit()
+    await event.edit("Filter dihapus.")
+
+@ayiin_cmd(pattern="setkomen(?: |$)(.*)")
+async def _(event):
+    teks = event.pattern_match.group(1)
+    komen = db.get_komen("last")
+    if not komen:
+        return await event.edit("Set channel dulu ya")
+    komen.reply = teks
+    db.SESSION.commit()
+    await event.edit(f"Auto komen diset: `{teks}`")
+
+@ayiin_cmd(pattern="delkomen$")
+async def _(event):
+    komen = db.get_komen("last")
+    if not komen:
+        return await event.edit("Belum ada komen.")
+    komen.reply = ""
+    db.SESSION.commit()
+    await event.edit("Auto komen dihapus.")
 
 @ayiin_cmd(pattern="listkomen$")
 async def _(event):
-    all_data = db.get_all()
-    if not all_data:
-        return await eor(event, "📭 Belum ada data auto komen.")
-    text = "**📄 List Auto Komen:**\n\n"
-    for x in all_data:
-        text += f"• 📢 Channel: `{x.channel}`\n   🔍 Filter: `{x.trigger}`\n   💬 Komen: `{x.komen}`\n\n"
-    await eor(event, text)
-
-@bot.on(events.NewMessage())
-async def _(event):
-    if not event.chat or not event.chat.username or not event.raw_text:
-        return
-    data = db.get_all()
+    data = db.get_all_komen()
+    if not data:
+        return await event.edit("Ga ada data auto komen.")
+    msg = "**📋 Daftar Auto Komen**\n"
     for row in data:
-        if event.chat.username == row.channel:
-            if row.trigger.lower() in event.raw_text.lower():
+        msg += f"\n📢 `{row.channel_id}`\n🔑 `{row.trigger}`\n💬 `{row.reply}`\n"
+    await event.edit(msg)
+
+@bot.on(events.NewMessage(chats=None))
+async def _(event):
+    if not event.is_channel:
+        return
+    komen_all = db.get_all_komen()
+    for komen in komen_all:
+        if komen.channel_id.replace("@", "") in str(event.chat.username) and komen.trigger in event.raw_text:
+            if komen.reply:
                 try:
-                    await client.send_message(event.chat_id, row.komen, comment_to=event.id)
+                    await bot.send_message(event.chat_id, komen.reply, comment_to=event.id)
                 except Exception as e:
-                    print(f"[AUTO KOMEN ERROR] {e}")
+                    print(f"[AutoKomen Error] {e}")
