@@ -80,20 +80,24 @@ async def list_all(event):
     await event.edit(msg)
 
 
-@bot.on(events.NewMessage(incoming=True))
-async def auto_komen_handler(event):
-    if not event.is_channel or event.out:
+@bot.on(events.NewMessage(chats=None))  # nanti di-set manual tiap kali trigger
+async def auto_comment_handler(event):
+    if not event.is_channel or not event.out:
         return
 
-    chat_username = getattr(event.chat, "username", "").lower()
-    komen_all = db.get_all_komen()
-    for komen in komen_all:
-        if komen.channel_id.replace("@", "").lower() == chat_username and komen.trigger in event.raw_text:
-            if komen.reply:
-                try:
-                    await bot.send_message(event.chat_id, komen.reply, comment_to=event.id)
-                except Exception as e:
-                    print(f"[AutoKomen Error] {e}")
+    all_data = db.get_all()
+    for data in all_data:
+        if str(event.chat.username) != data.channel_id.replace("@", ""):
+            continue
+
+        filters = [f.strip().lower() for f in data.filter.split(",") if f.strip()]
+        text = event.message.message.lower() if event.message.message else ""
+
+        if any(keyword in text for keyword in filters):
+            try:
+                await event.reply(data.komen)
+            except Exception as e:
+                print(f"❌ Gagal komen di {data.channel_id}: {e}")
 
 CMD_HELP.update({
     "autokomen": f"**Plugin :** `autokomen`\
