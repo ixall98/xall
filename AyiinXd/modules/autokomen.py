@@ -1,5 +1,5 @@
 # modules/autokomen.py
-from AyiinXd import CMD_HANDLER as cmd, CMD_HELP, client
+from AyiinXd import CMD_HANDLER as cmd, CMD_HELP, bot
 from AyiinXd.ayiin import eor
 from telethon import events
 from modules.sql import autokomen_sql as db
@@ -63,7 +63,7 @@ async def _(event):
         text += f"• 📢 Channel: `{x.channel}`\n   🔍 Filter: `{x.trigger}`\n   💬 Komen: `{x.komen}`\n\n"
     await eor(event, text)
 
-@client.on(events.NewMessage())
+@bot.on(events.NewMessage())
 async def _(event):
     if not event.chat or not event.chat.username or not event.raw_text:
         return
