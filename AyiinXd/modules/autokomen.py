@@ -5,7 +5,7 @@ from .sql_helper import autokomen_sql as db
 
 
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
-async def _(event):
+async def add_channel(event):
     channel_id = event.pattern_match.group(1)
     if not channel_id:
         return await event.edit("Contoh: .setch @namachannel")
@@ -17,14 +17,14 @@ async def _(event):
 
 
 @ayiin_cmd(pattern="delch(?: |$)(.*)")
-async def _(event):
+async def hapus_channel(event):
     channel_id = event.pattern_match.group(1)
     db.delete_komen(channel_id)
     await event.edit(f"🗑️ Berhasil hapus channel `{channel_id}`.")
 
 
 @ayiin_cmd(pattern="setfilter(?: |$)(.*)")
-async def _(event):
+async def add_filter(event):
     trigger = event.pattern_match.group(1)
     channel_id = db.get_last()
     if not channel_id:
@@ -36,7 +36,7 @@ async def _(event):
 
 
 @ayiin_cmd(pattern="delfilter$")
-async def _(event):
+async def hapus_filter(event):
     channel_id = db.get_last()
     komen = db.get_komen(channel_id)
     if not komen:
@@ -47,7 +47,7 @@ async def _(event):
 
 
 @ayiin_cmd(pattern="setkomen(?: |$)(.*)")
-async def _(event):
+async def add_komen(event):
     teks = event.pattern_match.group(1)
     channel_id = db.get_last()
     komen = db.get_komen(channel_id)
@@ -59,7 +59,7 @@ async def _(event):
 
 
 @ayiin_cmd(pattern="delkomen$")
-async def _(event):
+async def hapus_komen(event):
     channel_id = db.get_last()
     komen = db.get_komen(channel_id)
     if not komen:
@@ -70,7 +70,7 @@ async def _(event):
 
 
 @ayiin_cmd(pattern="listkomen$")
-async def _(event):
+async def list_all(event):
     data = db.get_all_komen()
     if not data:
         return await event.edit("Ga ada data auto komen.")
