@@ -2,7 +2,7 @@
 from AyiinXd import CMD_HANDLER as cmd, CMD_HELP, bot
 from AyiinXd.ayiin import eor
 from telethon import events
-from modules.sql import autokomen_sql as db
+from . import db
 
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
 async def _(event):
