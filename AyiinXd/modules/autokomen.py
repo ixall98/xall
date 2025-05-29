@@ -1,6 +1,6 @@
 from AyiinXd import CMD_HANDLER as cmd, CMD_HELP, bot
 from AyiinXd.events import ayiin_cmd
-from telethon.event import NewMessage
+from telethon import events
 from .sql_helper import autokomen_sql as db
 
 
@@ -80,7 +80,7 @@ async def list_all(event):
     await event.edit(msg)
 
 
-@bot.on(events.NewMessage())
+@bot.on(events.NewMessage(incoming=True))
 async def auto_komen_handler(event):
     if not event.is_channel or event.out:
         return
