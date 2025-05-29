@@ -94,3 +94,22 @@ async def _(event):
                     await bot.send_message(event.chat_id, komen.reply, comment_to=event.id)
                 except Exception as e:
                     print(f"[AutoKomen Error] {e}")
+
+CMD_HELP.update({
+    "autokomen": f"**Plugin :** `autokomen`\
+\n\n  »  **Perintah :** `{cmd}setch @namachannel`\
+\n  »  **Fungsi :** Menambahkan channel untuk auto komen.\
+\n\n  »  **Perintah :** `{cmd}delch @namachannel`\
+\n  »  **Fungsi :** Menghapus channel dari daftar auto komen.\
+\n\n  »  **Perintah :** `{cmd}setfilter keyword`\
+\n  »  **Fungsi :** Menyetel kata kunci (trigger) untuk auto komen.\
+\n\n  »  **Perintah :** `{cmd}delfilter`\
+\n  »  **Fungsi :** Menghapus trigger/kata kunci dari channel terakhir yang disetel.\
+\n\n  »  **Perintah :** `{cmd}setkomen teks`\
+\n  »  **Fungsi :** Menyetel teks auto komen yang akan dikirim saat trigger terdeteksi.\
+\n\n  »  **Perintah :** `{cmd}delkomen`\
+\n  »  **Fungsi :** Menghapus teks auto komen.\
+\n\n  »  **Perintah :** `{cmd}listkomen`\
+\n  »  **Fungsi :** Menampilkan semua channel yang disetel auto komen + trigger & teks-nya.\
+"
+})        
