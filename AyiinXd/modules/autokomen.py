@@ -80,7 +80,7 @@ async def _(event):
     await event.edit(msg)
 
 
-@bot.on(events.NewMessage())
+@bot.on(events.NewMessage)
 async def _(event):
     if not event.is_channel or not event.chat or not hasattr(event.chat, "username"):
         return
