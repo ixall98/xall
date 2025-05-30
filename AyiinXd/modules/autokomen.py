@@ -81,22 +81,20 @@ async def _(event):
 
 
 # ✅ Handler AutoKomen dibungkus agar gak error pas deploy
-def register_autokomen_handler():
-    @bot.on(events.NewMessage())
-    async def auto_komen_handler(event):
-        if not event.is_channel or not event.chat or not hasattr(event.chat, "username"):
-            return
+# ⛓️ Register handler langsung ke bot tanpa pakai decorator
+async def auto_komen_handler(event):
+    if not event.is_channel or not event.chat or not hasattr(event.chat, "username"):
+        return
 
-        chat_username = getattr(event.chat, "username", "").lower()
-        komen_all = db.get_all_komen()
-        for komen in komen_all:
-            if komen.channel_id.replace("@", "").lower() == chat_username and komen.trigger in event.raw_text:
-                if komen.reply:
-                    try:
-                        await bot.send_message(event.chat_id, komen.reply, comment_to=event.id)
-                    except Exception as e:
-                        print(f"[AutoKomen Error] {e}")
+    chat_username = getattr(event.chat, "username", "").lower()
+    komen_all = db.get_all_komen()
+    for komen in komen_all:
+        if komen.channel_id.replace("@", "").lower() == chat_username and komen.trigger in event.raw_text:
+            if komen.reply:
+                try:
+                    await bot.send_message(event.chat_id, komen.reply, comment_to=event.id)
+                except Exception as e:
+                    print(f"[AutoKomen Error] {e}")
 
 
-# ⛓️ Daftarin handler-nya cuma sekali
-register_autokomen_handler()
+bot.add_event_handler(auto_komen_handler, events.NewMessage)
