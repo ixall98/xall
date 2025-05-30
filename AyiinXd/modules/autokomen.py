@@ -5,7 +5,7 @@ from .sql_helper import autokomen_sql as db
 
 
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
-async def add_channel(event):
+async def _(event):
     channel_id = event.pattern_match.group(1)
     if not channel_id:
         return await event.edit("Contoh: .setch @namachannel")
@@ -17,14 +17,14 @@ async def add_channel(event):
 
 
 @ayiin_cmd(pattern="delch(?: |$)(.*)")
-async def hapus_channel(event):
+async def _(event):
     channel_id = event.pattern_match.group(1)
     db.delete_komen(channel_id)
     await event.edit(f"🗑️ Berhasil hapus channel `{channel_id}`.")
 
 
 @ayiin_cmd(pattern="setfilter(?: |$)(.*)")
-async def add_filter(event):
+async def _(event):
     trigger = event.pattern_match.group(1)
     channel_id = db.get_last()
     if not channel_id:
@@ -36,7 +36,7 @@ async def add_filter(event):
 
 
 @ayiin_cmd(pattern="delfilter$")
-async def hapus_filter(event):
+async def _(event):
     channel_id = db.get_last()
     komen = db.get_komen(channel_id)
     if not komen:
@@ -47,7 +47,7 @@ async def hapus_filter(event):
 
 
 @ayiin_cmd(pattern="setkomen(?: |$)(.*)")
-async def add_komen(event):
+async def _(event):
     teks = event.pattern_match.group(1)
     channel_id = db.get_last()
     komen = db.get_komen(channel_id)
@@ -59,7 +59,7 @@ async def add_komen(event):
 
 
 @ayiin_cmd(pattern="delkomen$")
-async def hapus_komen(event):
+async def _(event):
     channel_id = db.get_last()
     komen = db.get_komen(channel_id)
     if not komen:
@@ -70,7 +70,7 @@ async def hapus_komen(event):
 
 
 @ayiin_cmd(pattern="listkomen$")
-async def list_all(event):
+async def _(event):
     data = db.get_all_komen()
     if not data:
         return await event.edit("Ga ada data auto komen.")
@@ -79,21 +79,24 @@ async def list_all(event):
         msg += f"\n📢 `{row.channel_id}`\n🔑 `{row.trigger}`\n💬 `{row.reply}`\n"
     await event.edit(msg)
 
-CMD_HELP.update({
-    "autokomen": f"**Plugin :** `autokomen`\
-\n\n  »  **Perintah :** `{cmd}setch @namachannel`\
-\n  »  **Fungsi :** Menambahkan channel untuk auto komen.\
-\n\n  »  **Perintah :** `{cmd}delch @namachannel`\
-\n  »  **Fungsi :** Menghapus channel dari daftar auto komen.\
-\n\n  »  **Perintah :** `{cmd}setfilter keyword`\
-\n  »  **Fungsi :** Menyetel kata kunci (trigger) untuk auto komen.\
-\n\n  »  **Perintah :** `{cmd}delfilter`\
-\n  »  **Fungsi :** Menghapus trigger/kata kunci dari channel terakhir yang disetel.\
-\n\n  »  **Perintah :** `{cmd}setkomen teks`\
-\n  »  **Fungsi :** Menyetel teks auto komen yang akan dikirim saat trigger terdeteksi.\
-\n\n  »  **Perintah :** `{cmd}delkomen`\
-\n  »  **Fungsi :** Menghapus teks auto komen.\
-\n\n  »  **Perintah :** `{cmd}listkomen`\
-\n  »  **Fungsi :** Menampilkan semua channel yang disetel auto komen + trigger & teks-nya.\
-"
-})        
+
+# ✅ Handler AutoKomen dibungkus agar gak error pas deploy
+def register_autokomen_handler():
+    @bot.on(events.NewMessage())
+    async def auto_komen_handler(event):
+        if not event.is_channel or not event.chat or not hasattr(event.chat, "username"):
+            return
+
+        chat_username = getattr(event.chat, "username", "").lower()
+        komen_all = db.get_all_komen()
+        for komen in komen_all:
+            if komen.channel_id.replace("@", "").lower() == chat_username and komen.trigger in event.raw_text:
+                if komen.reply:
+                    try:
+                        await bot.send_message(event.chat_id, komen.reply, comment_to=event.id)
+                    except Exception as e:
+                        print(f"[AutoKomen Error] {e}")
+
+
+# ⛓️ Daftarin handler-nya cuma sekali
+register_autokomen_handler()
