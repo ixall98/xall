@@ -1,5 +1,5 @@
 from AyiinXd import CMD_HELP, client
-from AyiinXd.events import ayiin_cmd
+from AyiinXd.ayiin import ayiin_cmd
 from telethon import events
 from .sql_helper import filterchannel_sql as db
 
