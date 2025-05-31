@@ -9,6 +9,8 @@ async def _(event):
     channel_id = event.pattern_match.group(1)
     if not channel_id:
         return await event.edit("Contoh: `.setch @namachannel`")
+    if not channel_id.startswith("@"):
+        channel_id = "@" + channel_id
     if db.get_komen(channel_id):
         return await event.edit("Channel ini udah ada.")
     db.add_komen(channel_id, "", "")
@@ -19,10 +21,12 @@ async def _(event):
 @ayiin_cmd(pattern="delch(?: |$)(.*)")
 async def _(event):
     channel_id = event.pattern_match.group(1)
+    if not channel_id.startswith("@"):
+        channel_id = "@" + channel_id
     db.delete_komen(channel_id)
     await event.edit(f"🗑️ Channel `{channel_id}` dihapus dari daftar.")
 
-# 📝 SET KOMEN + TRIGGER
+# 📝 SET KOMEN + TRIGGER SEKALIGUS
 @ayiin_cmd(pattern="setkomen(?: |$)(.*)")
 async def _(event):
     args = event.pattern_match.group(1)
@@ -55,7 +59,7 @@ async def _(event):
     komen.reply = ""
     komen.trigger = ""
     db.SESSION.commit()
-    await event.edit("Auto komen & trigger dihapus.")
+    await event.edit("✅ Auto komen & trigger dihapus.")
 
 # 📋 LIHAT SEMUA
 @ayiin_cmd(pattern="listkomen$")
@@ -72,10 +76,11 @@ async def _(event):
 async def komen_channel(event):
     if event.chat.username is None:
         return
-    komen = db.get_komen(f"@{event.chat.username}")
+    channel_id = f"@{event.chat.username}"
+    komen = db.get_komen(channel_id)
     if not komen:
         return
-    if komen.trigger and komen.trigger not in event.raw_text:
+    if komen.trigger and komen.trigger.lower() not in event.raw_text.lower():
         return
     if komen.reply:
         await event.reply(komen.reply)
