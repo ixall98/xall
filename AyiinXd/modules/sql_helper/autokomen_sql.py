@@ -1,9 +1,9 @@
 try:
     from AyiinXd.modules.sql_helper import BASE, SESSION
 except ImportError:
-    raise AttributeError
+    raise AttributeError("Gagal import SQL Helper")
 
-from sqlalchemy import BigInteger, Column, Numeric, String, UnicodeText
+from sqlalchemy import Column, String
 
 class AutoKomen(BASE):
     __tablename__ = "autokomen"
