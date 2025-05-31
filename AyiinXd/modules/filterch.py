@@ -1,4 +1,4 @@
-from AyiinXd import CMD_HELP, bot
+from AyiinXd import CMD_HELP, client
 from AyiinXd.events import ayiin_cmd
 from telethon import events
 from .sql_helper import filterchannel_sql as db
@@ -85,4 +85,4 @@ async def monitor_channel(event):
             buttons=[[("🔎 Lihat Pesan", link)]]
         )
 
-bot.add_event_handler(monitor_channel, events.NewMessage(incoming=True, chats=None))
+client.add_event_handler(monitor_channel, events.NewMessage(incoming=True, chats=None))
