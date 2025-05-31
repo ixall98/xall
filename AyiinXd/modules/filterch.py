@@ -4,7 +4,7 @@ from telethon import events
 from .sql_helper import filterchannel_sql as db
 
 # ➕ Tambah Channel yang Mau Difilter
-@ayiin_cmd(pattern="addch(?: |$)(.*)")
+@ayiin_cmd(pattern="chadd(?: |$)(.*)")
 async def add_channel(event):
     channel_id = event.pattern_match.group(1)
     if not channel_id:
