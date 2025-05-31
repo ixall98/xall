@@ -7,6 +7,7 @@ from telethon.tl.functions.messages import ImportChatInviteRequest
 from telethon.tl.functions.messages import GetMessagesRequest
 from telethon.tl.types import InputPeerChannel, InputMessageID
 import re
+import asyncio
 
 @ayiin_cmd(pattern=r"setgrup (.+?)\s*\|\s*(.+)")
 async def setgrup(event):
