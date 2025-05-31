@@ -154,6 +154,8 @@ CMD_HELP.update(
         \n  »  **Kegunaan :** Menampilkan semua grup yang tersimpan dalam nama list.\
         \n\n  »  **Perintah :** `{cmd}listsave <namalist>`\
         \n  »  **Kegunaan :** Menampilkan detail isi list (grup & teks sebar).\
+        \n\n  »  **Perintah :** `{cmd}slist`\
+        \n  »  **Kegunaan :** Menampilkan semua nama list spam yang tersimpan.\
         \n\n  »  **Perintah :** `{cmd}delgrup <namalist> <@usergrup>`\
         \n  »  **Kegunaan :** Menghapus grup tertentu dari nama list.\
         \n\n  »  **Perintah :** `{cmd}dellist <namalist>`\
