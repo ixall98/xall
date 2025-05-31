@@ -3,7 +3,7 @@ try:
 except ImportError:
     raise AttributeError
 
-from sqlalchemy import BigInteger, Column, Numeric, String, UnicodeText
+from sqlalchemy import Column, String, Integer, BigInteger, PickleType
 
 class FilterChannel(BASE):
     __tablename__ = "filter_channel"
