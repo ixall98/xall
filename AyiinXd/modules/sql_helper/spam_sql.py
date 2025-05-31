@@ -3,7 +3,7 @@ try:
 except ImportError:
     raise AttributeError("Gagal import SQL Helper")
 
-from sqlalchemy import Column, String
+from sqlalchemy import Column, String, Integer
 
 class SpamList(BASE):
     __tablename__ = "spam_list"
