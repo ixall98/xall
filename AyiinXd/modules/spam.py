@@ -310,28 +310,48 @@ async def stop_fw(event):
         SPAMFW_STATUS.pop(g, None)
     await event.edit(f"✅ SpamFW dihentikan di: {', '.join(target)}")
 
-@ayiin_cmd(pattern="dspam (\d+) (\d+) (\w+)(?: (.+))?")
-async def dspam_cmd(event):
-    delay, amount, list_name, text = event.pattern_match.groups()
-    delay, amount = int(delay), int(amount)
+@ayiin_cmd(pattern="(delayspam|dspam) (\d+) (\d+)(?: (.+))?")
+async def delay_spam(event):
+    if event.chat_id in SPAM_STATUS and SPAM_STATUS[event.chat_id]:
+        return await event.edit("⚠️ Spam sedang berjalan di sini!")
+
     reply = await event.get_reply_message()
+    delay = int(event.pattern_match.group(2))
+    count = int(event.pattern_match.group(3))
+    extra_text = event.pattern_match.group(4)
+
     media = reply.media if reply and reply.media else None
-    caption = reply.text if reply and reply.text else text
-    if not caption and not media:
-        return await event.edit("⚠️ Harus reply media atau isi teks.")
-    
-    for g in SPAM_LIST.get(list_name, {}).get("groups", []):
-        SPAM_STATUS[g] = True
-        for _ in range(amount):
-            if not SPAM_STATUS.get(g): break
-            try:
-                if media:
-                    await event.client.send_file(g, media, caption=caption)
-                else:
-                    await event.client.send_message(g, caption)
-                await asyncio.sleep(delay)
-            except: pass
-    await event.edit("✅ dspam selesai.")
+
+    # ambil caption
+    if extra_text:
+        caption = extra_text
+    elif reply and reply.message:
+        caption = reply.message
+    else:
+        caption = None
+
+    if not media and not caption:
+        return await event.edit("❌ Tidak ada media atau teks yang bisa dikirim!")
+
+    await event.edit(f"▶️ Mulai spam {'media' if media else 'teks'} sebanyak {count}x, delay {delay}s")
+
+    SPAM_STATUS[event.chat_id] = True
+
+    for i in range(count):
+        if not SPAM_STATUS.get(event.chat_id):
+            break  # stop jika dimatikan
+        try:
+            if media:
+                await event.client.send_file(event.chat_id, media, caption=caption)
+            else:
+                await event.client.send_message(event.chat_id, caption)
+            await asyncio.sleep(delay)
+        except Exception as e:
+            print(f"❌ Gagal kirim spam: {e}")
+            break
+
+    SPAM_STATUS[event.chat_id] = False
+    await event.respond("✅ Spam selesai!")
 
 @ayiin_cmd(pattern="dspamfw (\d+) (\d+) (\w+) (https://t.me/.+)\b")
 async def dspamfw_cmd(event):
