@@ -1,0 +1,56 @@
+try:
+    from AyiinXd.modules.sql_helper import BASE, SESSION
+except ImportError:
+    raise AttributeError("Gagal import SQL Helper")
+
+from sqlalchemy import Column, String
+
+class SpamList(BASE):
+    __tablename__ = "spam_list"
+    name = Column(String, primary_key=True)
+    type = Column(String)  # "biasa" atau "fw"
+    content = Column(String)
+    delay = Column(Integer)
+
+class SpamGroup(BASE):
+    __tablename__ = "spam_group"
+    id = Column(Integer, primary_key=True)
+    list_name = Column(String)
+    group_username = Column(String)
+
+BASE.metadata.create_all(bind=SESSION.get_bind())
+
+def add_list(name, type, content, delay):
+    data = SESSION.query(SpamList).filter_by(name=name).first()
+    if data:
+        data.type = type
+        data.content = content
+        data.delay = delay
+    else:
+        data = SpamList(name=name, type=type, content=content, delay=delay)
+        SESSION.add(data)
+    SESSION.commit()
+
+def get_list(name):
+    return SESSION.query(SpamList).filter_by(name=name).first()
+
+def get_all_lists():
+    return SESSION.query(SpamList).all()
+
+def delete_list(name):
+    SESSION.query(SpamList).filter_by(name=name).delete()
+    SESSION.query(SpamGroup).filter_by(list_name=name).delete()
+    SESSION.commit()
+
+def add_groups_to_list(name, groups):
+    for g in groups:
+        if not SESSION.query(SpamGroup).filter_by(list_name=name, group_username=g).first():
+            SESSION.add(SpamGroup(list_name=name, group_username=g))
+    SESSION.commit()
+
+def get_groups(name):
+    return [g.group_username for g in SESSION.query(SpamGroup).filter_by(list_name=name).all()]
+
+def delete_group(name, group):
+    SESSION.query(SpamGroup).filter_by(list_name=name, group_username=group).delete()
+    SESSION.commit()
