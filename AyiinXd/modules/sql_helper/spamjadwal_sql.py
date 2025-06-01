@@ -66,15 +66,15 @@ def remove_jadwal_list(name):
     SESSION.query(JadwalSpamGroup).filter_by(list_name=name).delete()
     SESSION.commit()
 
-def add_groups_to_jadwal(name, groups):
+def add_groups_to_list(name, groups):
     for g in groups:
         if not SESSION.query(JadwalSpamGroup).filter_by(list_name=name, group_username=g).first():
             SESSION.add(JadwalSpamGroup(id=f"{name}_{g}", list_name=name, group_username=g))
     SESSION.commit()
 
-def get_groups_by_jadwal(name):
+def get_groups_by_list(name):
     return [g.group_username for g in SESSION.query(JadwalSpamGroup).filter_by(list_name=name).all()]
 
-def remove_group_from_jadwal(name, group):
+def remove_group_from_list(name, group):
     SESSION.query(JadwalSpamGroup).filter_by(list_name=name, group_username=group).delete()
     SESSION.commit()
