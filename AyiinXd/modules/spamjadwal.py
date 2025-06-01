@@ -15,6 +15,7 @@ import re
 from telethon.errors.rpcerrorlist import FloodWaitError
 from AyiinXd.ayiin import ayiin_cmd
 from AyiinXd import CMD_HANDLER as cmd
+from telethon.utils import get_display_name
 
 zona_map = {
     "WIB": "Asia/Jakarta",
@@ -104,14 +105,20 @@ async def unspam(event):
     if not groups:
         return await event.reply(f"Nama list '{namalist}' tidak ditemukan atau grupnya kosong.")
 
-    await event.reply(f"Mulai spam ke grup di list {namalist} dengan delay {delay} detik, berhenti jam {jam_henti} ({zona_input})")
-    
+    await event.reply(f"🚀 Mulai spam ke grup di list `{namalist}` dengan delay {delay} detik. Akan berhenti jam {jam_henti} ({zona_input})")
+
     counter = 0
     while True:
         now = datetime.now(tz)
         if now >= jam_stop:
             if BOTLOG_CHATID:
-                log_msg = f"Spam teks di list `{namalist}` sudah berhenti.\nTotal pesan terkirim: {counter}."
+                log_msg = (
+                    f"📛 **SPAM SELESAI**\n\n"
+                    f"📂 Nama List : `{namalist}`\n"
+                    f"⏰ Waktu Berhenti : `{jam_henti} ({zona_input})`\n"
+                    f"📊 Total Pesan Terkirim : `{counter}`\n"
+                    f"🧠 Teks :\n{teks}"
+                )
                 await event.client.send_message(BOTLOG_CHATID, log_msg)
             break
 
@@ -148,14 +155,22 @@ async def unfw(event):
     except Exception as e:
         return await event.reply(f"Gagal ambil pesan dari link: {e}")
 
-    await event.reply(f"Mulai spam forward ke grup di list {namalist} dengan delay {delay} detik, berhenti jam {jam_henti} ({zona_input})")
+    await event.reply(f"🚀 Mulai spam forward ke grup di list `{namalist}` dengan delay {delay} detik. Akan berhenti jam {jam_henti} ({zona_input})")
 
     counter = 0
     while True:
         now = datetime.now(tz)
         if now >= jam_stop:
             if BOTLOG_CHATID:
-                log_msg = f"Spam forward di list `{namalist}` sudah berhenti.\nTotal pesan terkirim: {counter}."
+                context = event.chat_id if event.is_private else get_display_name(await event.get_chat())
+                log_msg = (
+                    f"📛 **SPAM FORWARD SELESAI**\n\n"
+                    f"👤 Context: `{context}`\n"
+                    f"📂 Nama List: `{namalist}`\n"
+                    f"⏰ Waktu Berhenti: `{jam_henti} ({zona_input})`\n"
+                    f"📊 Total Pesan Ter-forward: `{counter}`\n"
+                    f"🔗 Link: {link}"
+                )
                 await event.client.send_message(BOTLOG_CHATID, log_msg)
             break
 
