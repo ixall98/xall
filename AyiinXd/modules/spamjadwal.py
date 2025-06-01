@@ -11,7 +11,6 @@ from AyiinXd.modules.sql_helper.spamjadwal_sql import (
 from datetime import datetime
 import pytz
 import asyncio
-import re
 from telethon.errors.rpcerrorlist import FloodWaitError
 from AyiinXd.ayiin import ayiin_cmd
 from AyiinXd import CMD_HANDLER as cmd
@@ -19,48 +18,51 @@ from AyiinXd import CMD_HELP
 from AyiinXd import BOTLOG_CHATID
 from telethon.utils import get_display_name
 
+# Map zona ke pytz timezone
 zona_map = {
     "WIB": "Asia/Jakarta",
     "WITA": "Asia/Makassar",
     "WIT": "Asia/Jayapura",
 }
 
+# Simpan task spam yang aktif per nama list
 ACTIVE_SPAM = {}
 
-@ayiin_cmd(pattern="szone(?:\s+|$)(.*)")
+# Command set zona waktu user
+@ayiin_cmd(pattern=f"szone(?:\\s+|$)(.*)")
 async def set_zona(event):
     zona_input = event.pattern_match.group(1).strip().upper()
     if zona_input not in zona_map:
         return await event.reply("Zona gak valid. Pilih salah satu: WIB, WITA, WIT.")
-
     set_user_timezone(str(event.sender_id), zona_input)
     await event.reply(f"Zona waktu berhasil di-set ke {zona_input}.")
 
-@ayiin_cmd(pattern="sgrup(?:\s+)(.*)")
+# Command tambah grup ke list
+@ayiin_cmd(pattern=f"sgrup(?:\\s+)(.*)")
 async def sgrup(event):
     args = event.pattern_match.group(1).split()
     if len(args) < 2:
-        return await event.reply("Format salah! .sgrup <namalist> <@grup1> [@grup2 ...]")
-
+        return await event.reply(f"Format salah! {cmd}sgrup <namalist> <@grup1> [@grup2 ...]")
     namalist = args[0]
     groups = args[1:]
     for group in groups:
         add_group_to_list(namalist, group)
     await event.reply(f"Berhasil menambahkan grup ke list {namalist}:\n" + "\n".join(groups))
 
-@ayiin_cmd(pattern="dgrup(?:\s+)(.*)")
+# Command hapus grup dari list
+@ayiin_cmd(pattern=f"dgrup(?:\\s+)(.*)")
 async def dgrup(event):
     args = event.pattern_match.group(1).split()
     if len(args) < 2:
-        return await event.reply("Format salah! .dgrup <namalist> <@grup1> [@grup2 ...]")
-
+        return await event.reply(f"Format salah! {cmd}dgrup <namalist> <@grup1> [@grup2 ...]")
     namalist = args[0]
     groups = args[1:]
     for group in groups:
         remove_group_from_list(namalist, group)
     await event.reply(f"Berhasil menghapus grup dari list {namalist}:\n" + "\n".join(groups))
 
-@ayiin_cmd(pattern="dbspam(?:\\s*)$")
+# Command list spam yang sedang berjalan
+@ayiin_cmd(pattern=f"dbspam(?:\\s*)$")
 async def dbspam(event):
     if not ACTIVE_SPAM:
         await event.reply("💤 Tidak ada spam yang sedang berjalan.")
@@ -70,12 +72,12 @@ async def dbspam(event):
             teks += f"• `{namalist}` - {len(tasks)} task aktif\n"
         await event.reply(teks)
 
-@ayiin_cmd(pattern="nspam(?:\s*)$")
+# Command lihat semua list spam dan grup
+@ayiin_cmd(pattern=f"nspam(?:\\s*)$")
 async def nspam(event):
     lists = get_all_lists()
     if not lists:
-        await event.reply("Tidak ada nama list spam yang disetting.")
-        return
+        return await event.reply("Tidak ada nama list spam yang disetting.")
     teks = "Nama list spam dan grup yang terdaftar:\n"
     for l in lists:
         teks += f"- {l.name}\n"
@@ -83,27 +85,29 @@ async def nspam(event):
         teks += "\n".join(f"  • {g}" for g in groups) + "\n"
     await event.reply(teks)
 
-@ayiin_cmd(pattern="rlist(?:\s+)(.*)")
+# Command hapus list spam dan grupnya
+@ayiin_cmd(pattern=f"rlist(?:\\s+)(.*)")
 async def rlist(event):
     namalist = event.pattern_match.group(1).strip()
     if not namalist:
-        return await event.reply("Format salah! .rlist <namalist>")
+        return await event.reply(f"Format salah! {cmd}rlist <namalist>")
     remove_list(namalist)
     await event.reply(f"Nama list {namalist} dan grupnya berhasil dihapus.")
 
-@ayiin_cmd(pattern="unspam(?:\s+)(.*)")
+# Command spam teks ke grup dengan jadwal berhenti dan delay
+@ayiin_cmd(pattern=f"unspam(?:\\s+)(.*)")
 async def unspam(event):
     args = event.pattern_match.group(1).split(" ", 3)
     if len(args) < 4:
-        return await event.reply("Format salah! .unspam <jam_berhenti> <delay> <namalist> <teks spam>")
+        return await event.reply(f"Format salah! {cmd}unspam <jam_berhenti> <delay> <namalist> <teks spam>")
+    jam_henti, delay, namalist, teks = args[0], args[1], args[2], args[3]
 
-    jam_henti, delay, namalist, teks = args
-    zona_input = get_user_timezone(str(event.sender_id))
+    zona_input = get_user_timezone(str(event.sender_id)) or "WIB"
     tz = pytz.timezone(zona_map.get(zona_input, "Asia/Jakarta"))
 
     try:
         jam_stop = tz.localize(datetime.strptime(jam_henti, "%H:%M"))
-    except:
+    except Exception:
         return await event.reply("Format jam salah, harus HH:MM")
 
     groups = get_groups_by_list(namalist)
@@ -131,6 +135,8 @@ async def unspam(event):
                 try:
                     await event.client.send_message(group, teks)
                     counter += 1
+                except FloodWaitError as e:
+                    await asyncio.sleep(e.seconds)
                 except Exception:
                     pass
                 await asyncio.sleep(int(delay))
@@ -138,19 +144,20 @@ async def unspam(event):
     task = asyncio.create_task(spam_task())
     ACTIVE_SPAM.setdefault(namalist, []).append(task)
 
-@ayiin_cmd(pattern="unfw(?:\s+)(.*)")
+# Command spam forward pesan dari channel ke grup dengan jadwal berhenti dan delay
+@ayiin_cmd(pattern=f"unfw(?:\\s+)(.*)")
 async def unfw(event):
     args = event.pattern_match.group(1).split(" ", 3)
     if len(args) < 4:
-        return await event.reply("Format salah! .unfw <jam_berhenti> <delay> <namalist> <link bubble chat dari channel>")
+        return await event.reply(f"Format salah! {cmd}unfw <jam_berhenti> <delay> <namalist> <link bubble chat dari channel>")
+    jam_henti, delay, namalist, link = args[0], args[1], args[2], args[3]
 
-    jam_henti, delay, namalist, link = args
-    zona_input = get_user_timezone(str(event.sender_id))
+    zona_input = get_user_timezone(str(event.sender_id)) or "WIB"
     tz = pytz.timezone(zona_map.get(zona_input, "Asia/Jakarta"))
 
     try:
         jam_stop = tz.localize(datetime.strptime(jam_henti, "%H:%M"))
-    except:
+    except Exception:
         return await event.reply("Format jam salah, harus HH:MM")
 
     groups = get_groups_by_list(namalist)
@@ -185,6 +192,8 @@ async def unfw(event):
                 try:
                     await event.client.forward_messages(group, message)
                     counter += 1
+                except FloodWaitError as e:
+                    await asyncio.sleep(e.seconds)
                 except Exception:
                     pass
                 await asyncio.sleep(int(delay))
@@ -192,42 +201,46 @@ async def unfw(event):
     task = asyncio.create_task(fw_task())
     ACTIVE_SPAM.setdefault(namalist, []).append(task)
 
-@ayiin_cmd(pattern="dnspam(?:\s+)(.*)")
+# Command stop dan hapus semua spam di nama list tertentu
+@ayiin_cmd(pattern=f"dnspam(?:\\s+)(.*)")
 async def dnspam(event):
     namalist = event.pattern_match.group(1).strip()
     if not namalist:
-        return await event.reply("Format salah! .dnspam <namalist>")
+        return await event.reply(f"Format salah! {cmd}dnspam <namalist>")
     await stop_all_tasks(namalist)
     remove_list(namalist)
     await event.reply(f"Berhasil menghentikan semua spam dan menghapus list `{namalist}`.")
 
+# Fungsi bantu untuk stop task spam berjalan
 async def stop_all_tasks(namalist):
     tasks = ACTIVE_SPAM.get(namalist, [])
     for task in tasks:
-        task.cancel()
+        try:
+            task.cancel()
+        except Exception:
+            pass
     ACTIVE_SPAM.pop(namalist, None)
 
+# Update CMD_HELP
 CMD_HELP.update(
     {
         "spamjadwal": f"**Plugin :** `spamjadwal`\
-\n\n  »  **Perintah :** `.szone <zona waktu>`\
+\n\n  »  **Perintah :** `{cmd}szone <zona waktu>`\
 \n  »  **Kegunaan :** Set zona waktu bot, contoh: WIB, WITA, WIT. Default WIB.\
-\n  »  **Perintah :** `.sgrup <nama_list> <@grup1> [@grup2 ...]`\
+\n  »  **Perintah :** `{cmd}sgrup <nama_list> <@grup1> [@grup2 ...]`\
 \n  »  **Kegunaan :** Tambah satu atau lebih grup ke dalam nama list spam.\
-\n  »  **Perintah :** `.dgrup <nama_list> <@grup1> [@grup2 ...]`\
+\n  »  **Perintah :** `{cmd}dgrup <nama_list> <@grup1> [@grup2 ...]`\
 \n  »  **Kegunaan :** Hapus satu atau lebih grup dari nama list spam.\
-\n  »  **Perintah :** `.dbspam`\
+\n  »  **Perintah :** `{cmd}dbspam`\
 \n  »  **Kegunaan :** List spam yang sedang berjalan.\
-\n  »  **Perintah :** `.nspam`\
+\n  »  **Perintah :** `{cmd}nspam`\
 \n  »  **Kegunaan :** Lihat semua nama list spam beserta grup di dalamnya.\
-\n  »  **Perintah :** `.rlist <nama_list>`\
+\n  »  **Perintah :** `{cmd}rlist <nama_list>`\
 \n  »  **Kegunaan :** Hapus nama list dan semua grupnya.\
-\n  »  **Perintah :** `.unspam <jam_berhenti> <delay> <nama_list> <teks spam>`\
+\n  »  **Perintah :** `{cmd}unspam <jam_berhenti> <delay> <nama_list> <teks spam>`\
 \n  »  **Kegunaan :** Spam teks biasa ke semua grup di nama list sampai jam berhenti.\
-\n  »  **Perintah :** `.unfw <jam_berhenti> <delay> <nama_list> <link bubble chat channel>`\
+\n  »  **Perintah :** `{cmd}unfw <jam_berhenti> <delay> <nama_list> <link bubble chat channel>`\
 \n  »  **Kegunaan :** Spam forward pesan dari channel ke semua grup di nama list sampai jam berhenti.\
-\n  »  **Perintah :** `.dnspam <nama_list>`\
+\n  »  **Perintah :** `{cmd}dnspam <nama_list>`\
 \n  »  **Kegunaan :** Stop dan hapus semua jadwal spam dari nama list tersebut.\
-\n  **NOTE:** Jam berhenti mengikuti zona waktu yang sudah di-set dengan `.szone`."
-    }
-)
+\n\n**NOTE:** Jam
