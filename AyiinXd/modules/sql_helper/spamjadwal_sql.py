@@ -66,7 +66,7 @@ def remove_jadwal_list(name):
     SESSION.query(JadwalSpamGroup).filter_by(list_name=name).delete()
     SESSION.commit()
 
-def add_groups_to_list(name, groups):
+def add_group_to_list(name, groups):
     for g in groups:
         if not SESSION.query(JadwalSpamGroup).filter_by(list_name=name, group_username=g).first():
             SESSION.add(JadwalSpamGroup(id=f"{name}_{g}", list_name=name, group_username=g))
