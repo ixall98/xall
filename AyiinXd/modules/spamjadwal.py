@@ -98,50 +98,64 @@ async def rlist(event):
 @ayiin_cmd(pattern=f"unspam(?:\\s+)(.*)")
 async def unspam(event):
     args = event.pattern_match.group(1).split(" ", 3)
-    if len(args) < 4:
-        return await event.reply(f"Format salah! {cmd}unspam <jam_berhenti> <delay> <namalist> <teks spam>")
+    if len(args) < 3:
+        return await event.reply(f"Format salah!\nGunakan:\n`{cmd}unspam <jam_berhenti> <delay> <namalist> [teks spam (optional jika reply media)]`")
 
-    jam_henti, delay, namalist, teks = args[0], args[1], args[2], args[3]
+    jam_henti = args[0]
+    delay = args[1]
+    namalist = args[2]
+    teks = args[3] if len(args) > 3 else None
 
     zona_input = get_user_timezone(str(event.sender_id)) or "WIB"
     tz = pytz.timezone(zona_map.get(zona_input, "Asia/Jakarta"))
 
-    now = datetime.now(tz)
     try:
-        jam_stop = datetime.strptime(jam_henti, "%H:%M")
-        jam_stop = tz.localize(jam_stop.replace(year=now.year, month=now.month, day=now.day))
-        if jam_stop <= now:
-            jam_stop += timedelta(days=1)
+        jam_stop = tz.localize(datetime.strptime(jam_henti, "%H:%M"))
     except Exception:
-        return await event.reply("Format jam salah, harus HH:MM")
+        return await event.reply("Format jam salah! Contoh: `12:30`")
 
     groups = get_groups_by_list(namalist)
     if not groups:
-        return await event.reply(f"Nama list '{namalist}' tidak ditemukan atau grupnya kosong.")
+        return await event.reply(f"List `{namalist}` kosong atau tidak ditemukan.")
+
+    reply_msg = await event.get_reply_message()
+
+    if not teks and not reply_msg:
+        return await event.reply("Kamu harus kirim teks atau reply ke media!")
 
     await event.reply(
-        f"🚀 Mulai spam ke grup di list `{namalist}` dengan delay {delay} detik.\n"
-        f"⏰ Akan berhenti jam {jam_henti} ({zona_input})"
+        f"🚀 Mulai spam ke list `{namalist}` dengan delay {delay}s. Stop jam {jam_henti} ({zona_input})"
     )
 
     async def spam_task():
         counter = 0
         while True:
-            now_loop = datetime.now(tz)
-            if now_loop >= jam_stop:
+            now = datetime.now(tz)
+            if now >= jam_stop:
                 if BOTLOG_CHATID:
                     log_msg = (
                         f"📛 **SPAM SELESAI**\n\n"
                         f"📂 Nama List : `{namalist}`\n"
                         f"⏰ Waktu Berhenti : `{jam_henti} ({zona_input})`\n"
-                        f"📊 Total Pesan Terkirim : `{counter}`\n"
-                        f"🧠 Teks :\n{teks}"
+                        f"📊 Total Pesan : `{counter}`\n"
+                        f"📎 Mode : {'Media + Caption' if reply_msg else 'Teks'}"
                     )
+                    if teks:
+                        log_msg += f"\n🧠 Teks :\n{teks}"
                     await event.client.send_message(BOTLOG_CHATID, log_msg)
                 break
+
             for group in groups:
                 try:
-                    await event.client.send_message(group, teks)
+                    if reply_msg:
+                        if teks:
+                            # Copy media dan ganti caption
+                            await reply_msg.copy_to(group, caption=teks, parse_mode="html")
+                        else:
+                            # Copy media pakai caption asli
+                            await reply_msg.copy_to(group)
+                    else:
+                        await event.client.send_message(group, teks, parse_mode="html", link_preview=False)
                     counter += 1
                 except FloodWaitError as e:
                     await asyncio.sleep(e.seconds)
@@ -163,14 +177,9 @@ async def unfw(event):
 
     zona_input = get_user_timezone(str(event.sender_id)) or "WIB"
     tz = pytz.timezone(zona_map.get(zona_input, "Asia/Jakarta"))
-    now = datetime.now(tz)
 
-    # Perbaikan parsing jam + tanggal agar tidak langsung selesai
     try:
-        jam_stop = datetime.strptime(jam_henti, "%H:%M")
-        jam_stop = tz.localize(jam_stop.replace(year=now.year, month=now.month, day=now.day))
-        if jam_stop <= now:
-            jam_stop += timedelta(days=1)
+        jam_stop = tz.localize(datetime.strptime(jam_henti, "%H:%M"))
     except Exception:
         return await event.reply("Format jam salah, harus HH:MM")
 
@@ -178,33 +187,41 @@ async def unfw(event):
     if not groups:
         return await event.reply(f"Nama list '{namalist}' tidak ditemukan atau grupnya kosong.")
 
+    # ✅ Ambil channel username dan message ID dari link
     try:
-        message = await event.client.get_messages(link)
+        if "t.me/" not in link:
+            raise ValueError("Link harus berupa https://t.me/username/123")
+
+        parts = link.split("/")
+        if len(parts) < 5:
+            raise ValueError("Link tidak valid, pastikan formatnya seperti https://t.me/channel/1234")
+
+        channel_username = parts[3]
+        message_id = int(parts[4])
+
+        message = await event.client.get_messages(channel_username, ids=message_id)
+
     except Exception as e:
         return await event.reply(f"Gagal ambil pesan dari link: {e}")
 
-    await event.reply(
-        f"🚀 Mulai spam forward ke grup di list `{namalist}` dengan delay {delay} detik.\n"
-        f"⏰ Akan berhenti jam {jam_henti} ({zona_input})"
-    )
+    await event.reply(f"🚀 Mulai spam forward ke grup di list `{namalist}` dengan delay {delay} detik. Akan berhenti jam {jam_henti} ({zona_input})")
 
     async def fw_task():
         counter = 0
         while True:
-            now_loop = datetime.now(tz)
-            if now_loop >= jam_stop:
+            now = datetime.now(tz)
+            if now >= jam_stop:
                 if BOTLOG_CHATID:
-                    context = event.chat_id if event.is_private else get_display_name(await event.get_chat())
                     log_msg = (
                         f"📛 **SPAM FORWARD SELESAI**\n\n"
-                        f"👤 Context: `{context}`\n"
-                        f"📂 Nama List: `{namalist}`\n"
-                        f"⏰ Waktu Berhenti: `{jam_henti} ({zona_input})`\n"
-                        f"📊 Total Pesan Ter-forward: `{counter}`\n"
-                        f"🔗 Link: {link}"
+                        f"📂 Nama List : `{namalist}`\n"
+                        f"⏰ Waktu Berhenti : `{jam_henti} ({zona_input})`\n"
+                        f"📊 Total Pesan Ter-forward : `{counter}`\n"
+                        f"🔗 Link : {link}"
                     )
                     await event.client.send_message(BOTLOG_CHATID, log_msg)
                 break
+
             for group in groups:
                 try:
                     await event.client.forward_messages(group, message)
