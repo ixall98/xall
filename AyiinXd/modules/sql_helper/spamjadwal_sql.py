@@ -61,7 +61,7 @@ def get_jadwal_list(name):
 def get_all_lists():
     return SESSION.query(JadwalSpamList).all()
 
-def remove_jadwal_list(name):
+def remove_list(name):
     SESSION.query(JadwalSpamList).filter_by(name=name).delete()
     SESSION.query(JadwalSpamGroup).filter_by(list_name=name).delete()
     SESSION.commit()
