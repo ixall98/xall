@@ -58,7 +58,7 @@ def add_jadwal_list(name, type, content, delay):
 def get_jadwal_list(name):
     return SESSION.query(JadwalSpamList).filter_by(name=name).first()
 
-def get_all_jadwal_lists():
+def get_all_lists():
     return SESSION.query(JadwalSpamList).all()
 
 def remove_jadwal_list(name):
