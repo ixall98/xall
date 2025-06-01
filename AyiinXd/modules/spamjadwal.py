@@ -243,4 +243,6 @@ CMD_HELP.update(
 \n  »  **Kegunaan :** Spam forward pesan dari channel ke semua grup di nama list sampai jam berhenti.\
 \n  »  **Perintah :** `{cmd}dnspam <nama_list>`\
 \n  »  **Kegunaan :** Stop dan hapus semua jadwal spam dari nama list tersebut.\
-\n\n**NOTE:** Jam
+\n\n**NOTE:** Jam berhenti mengikuti zona waktu yang sudah di-set dengan `{cmd}szone`."
+    }
+    )
