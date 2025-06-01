@@ -108,33 +108,35 @@ async def stopspam(event):
     await event.edit(f"🛑 Spam `{nama}` berhasil dihentikan.")
     
 @ayiin_cmd(pattern="listspam$")
-async def list_spam(event):
-    all_lists = spam_sql.get_all_lists()
-    if not all_lists:
-        return await event.edit("📭 Tidak ada list spam.")
-    teks = "**📋 Daftar List Spam**\n\n"
-    for lst in all_lists:
-        aktif = "✅" if lst.name in active_spams else "❌"
-        grups = spam_sql.get_groups(lst.name)
-        teks += f"🔹 **{lst.name}**\n"
-        teks += f"   • Jenis  : `{lst.type}`\n"
-        teks += f"   • Delay  : `{lst.delay}s`\n"
-        teks += f"   • Grup   : `{', '.join(grups)}`\n"
-        teks += f"   • Aktif  : {aktif}\n\n"
+async def list_all_spam(event):
+    lists = spam_sql.get_all_lists()
+    if not lists:
+        return await event.edit("📭 Tidak ada data spam tersimpan.")
+
+    teks = "**📋 Daftar List Spam:**\n\n"
+    for l in lists:
+        grups = spam_sql.get_groups(l.name)
+        status = "Aktif ✅" if l.name in active_spams else "Nonaktif ❌"
+        teks += f"• `{l.name}` [{l.type}] - {status}\n"
+        teks += f"   Grup: {len(grups)} | Delay: {l.delay}s\n\n"
     await event.edit(teks)
 
 @ayiin_cmd(pattern="listsave (.+)")
 async def list_save(event):
     nama = event.pattern_match.group(1).strip()
-    lst = spam_sql.get_list(nama)
-    if not lst:
+    data = spam_sql.get_list(nama)
+    if not data:
         return await event.edit(f"❌ List `{nama}` tidak ditemukan.")
+
     grups = spam_sql.get_groups(nama)
     teks = f"📄 **List:** `{nama}`\n"
-    teks += f"• Jenis : `{lst.type}`\n"
-    teks += f"• Delay : `{lst.delay}`\n"
-    teks += f"• Grup  : `{', '.join(grups)}`\n"
-    teks += f"• Isi   :\n`{lst.content}`"
+    teks += f"• Jenis : `{data.type}`\n"
+    teks += f"• Delay : `{data.delay}` detik\n"
+    teks += f"• Grup : {len(grups)}\n"
+    teks += f"• Teks/Link:\n`{data.content}`\n"
+    teks += "\n📌 **Daftar Grup:**\n"
+    for g in grups:
+        teks += f" - `{g}`\n"
     await event.edit(teks)
 
 @ayiin_cmd(pattern=r"delgrup (.+?) (.+)")
@@ -151,12 +153,22 @@ async def dellist(event):
     await event.edit(f"🗑️ List `{nama}` dan semua isinya dihapus.")
 
 @ayiin_cmd(pattern="slist$")
-async def list_nama(event):
-    all_lists = spam_sql.get_all_lists()
-    if not all_lists:
-        return await event.edit("📭 Tidak ada list tersedia.")
-    teks = "**📌 Semua Nama List:**\n\n"
-    teks += "\n".join([f"• `{lst.name}`" for lst in all_lists])
+async def show_all_spam_lists(event):
+    lists = spam_sql.get_all_lists()
+    if not lists:
+        return await event.edit("📭 Belum ada list yang disimpan.")
+
+    teks = "**📦 Semua Nama List Spam yang Punya Grup:**\n\n"
+    count = 0
+    for l in lists:
+        grups = spam_sql.get_groups(l.name)
+        if grups:
+            count += 1
+            teks += f"• `{l.name}` ({len(grups)} grup)\n"
+
+    if count == 0:
+        teks = "📭 Belum ada list yang punya grup."
+        
     await event.edit(teks)
         
 CMD_HELP.update(
