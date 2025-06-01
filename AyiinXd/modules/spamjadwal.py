@@ -105,7 +105,7 @@ async def unspam(event):
         return await event.reply(f"Nama list '{namalist}' tidak ditemukan atau grupnya kosong.")
 
     await event.reply(f"Mulai spam ke grup di list {namalist} dengan delay {delay} detik, berhenti jam {jam_henti} ({zona_input})")
-
+    
     counter = 0
     while True:
         now = datetime.now(tz)
@@ -150,7 +150,7 @@ async def unfw(event):
 
     await event.reply(f"Mulai spam forward ke grup di list {namalist} dengan delay {delay} detik, berhenti jam {jam_henti} ({zona_input})")
 
-      counter = 0
+    counter = 0
     while True:
         now = datetime.now(tz)
         if now >= jam_stop:
