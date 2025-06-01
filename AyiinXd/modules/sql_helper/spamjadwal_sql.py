@@ -11,6 +11,7 @@ from threading import Lock
 
 class ZonaWaktu(BASE):
     __tablename__ = "zona_waktu"
+    __table_args__ = {'extend_existing': True}
     user_id = Column(String, primary_key=True)
     zona = Column(String)
 
@@ -30,11 +31,13 @@ def get_user_timezone(user_id):
 # Table for spam lists
 class SpamList(BASE):
     __tablename__ = "spam_list"
+    __table_args__ = {'extend_existing': True}
     name = Column(String, primary_key=True)
     groups = relationship("SpamGroup", cascade="all, delete", backref="list")
 
 class SpamGroup(BASE):
     __tablename__ = "spam_group"
+    __table_args__ = {'extend_existing': True}
     id = Column(String, primary_key=True)
     list_name = Column(String, ForeignKey("spam_list.name"))
     group_username = Column(String)
