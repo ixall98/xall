@@ -103,9 +103,7 @@ async def unspam(event):
             f"Format salah!\nGunakan:\n`{cmd}unspam <jam_berhenti> <delay> <namalist> [teks spam (optional jika reply media)]`"
         )
 
-    jam_henti = args[0]
-    delay = args[1]
-    namalist = args[2]
+    jam_henti, delay, namalist = args[0], args[1], args[2]
     teks = args[3] if len(args) > 3 else None
 
     zona_input = get_user_timezone(str(event.sender_id)) or "WIB"
@@ -146,19 +144,25 @@ async def unspam(event):
                         f"📎 Mode : {'Media + Caption' if reply_msg else 'Teks'}"
                     )
                     if teks:
-                        log_msg += f"\n🧠 Teks :\n{teks}"
+                        log_msg += f"\n🧠 Teks:\n{teks}"
                     await event.client.send_message(BOTLOG_CHATID, log_msg)
                 break
 
             for group in groups:
                 try:
                     if reply_msg:
-                        if teks:
-                            await reply_msg.copy_to(group, caption=teks, parse_mode="html")
-                        else:
-                            await reply_msg.copy_to(group)
+                        await reply_msg.copy_to(
+                            group,
+                            caption=teks or reply_msg.text or "",
+                            parse_mode="markdown"
+                        )
                     else:
-                        await event.client.send_message(group, teks, parse_mode="html", link_preview=False)
+                        await event.client.send_message(
+                            group,
+                            teks,
+                            parse_mode="markdown",
+                            link_preview=False
+                        )
                     counter += 1
                 except FloodWaitError as e:
                     await asyncio.sleep(e.seconds)
