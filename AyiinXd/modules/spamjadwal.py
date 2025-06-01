@@ -1,5 +1,3 @@
-# modules/spamjadwal.py
-
 import asyncio
 import re
 from datetime import datetime, time as dtime
@@ -8,14 +6,7 @@ from AyiinXd.ayiin import ayiin_cmd
 from AyiinXd import CMD_HANDLER as cmd
 from AyiinXd.modules.sql_helper import spamjadwal_sql as db
 
-ACTIVE_SPAM = {}  # key: namalist, value: list of asyncio.Tasks
-
-def parse_time(tstr):
-    try:
-        h, m = map(int, tstr.split(":"))
-        return dtime(hour=h, minute=m)
-    except:
-        return None
+ACTIVE_SPAM = {}
 
 async def stop_all_tasks(namalist):
     tasks = ACTIVE_SPAM.get(namalist, [])
@@ -23,205 +14,110 @@ async def stop_all_tasks(namalist):
         task.cancel()
     ACTIVE_SPAM.pop(namalist, None)
 
-@ayiin_cmd(pattern=r"sgrup (.+)")
+@ayiin_cmd(pattern=r"sgrup (\w+) (.+)")
 async def sgrup(event):
-    args = event.pattern_match.group(1)
-    parts = args.split()
-    if len(parts) < 2:
-        return await event.edit(f"Format salah.\nContoh: `{cmd}sgrup namalist @grup1 @grup2`")
-    namalist = parts[0]
-    grups = parts[1:]
-    added = []
-    for g in grups:
-        if not g.startswith("@"):
-            continue
-        db.add_grup(namalist, g)
-        added.append(g)
-    await event.edit(f"Berhasil tambah grup ke list `{namalist}`:\n" + "\n".join(added))
+    namalist, grups = event.pattern_match.group(1), event.pattern_match.group(2).split()
+    for grup in grups:
+        add_group_to_list(namalist, grup)
+    await event.edit(f"✅ Grup berhasil ditambahkan ke list `{namalist}`")
 
-@ayiin_cmd(pattern=r"dgrup (.+)")
+@ayiin_cmd(pattern=r"dgrup (\w+) (.+)")
 async def dgrup(event):
-    args = event.pattern_match.group(1)
-    parts = args.split()
-    if len(parts) < 2:
-        return await event.edit(f"Format salah.\nContoh: `{cmd}dgrup namalist @grup1 @grup2`")
-    namalist = parts[0]
-    grups = parts[1:]
-    removed = []
-    for g in grups:
-        if not g.startswith("@"):
-            continue
-        db.remove_grup(namalist, g)
-        removed.append(g)
-    await event.edit(f"Berhasil hapus grup dari list `{namalist}`:\n" + "\n".join(removed))
+    namalist, grups = event.pattern_match.group(1), event.pattern_match.group(2).split()
+    for grup in grups:
+        remove_group_from_list(namalist, grup)
+    await event.edit(f"❌ Grup berhasil dihapus dari list `{namalist}`")
 
-@ayiin_cmd(pattern="nspam$")
+@ayiin_cmd(pattern=r"nspam")
 async def nspam(event):
-    all_lists = db.get_all_lists()
+    all_lists = get_all_lists_with_groups()
     if not all_lists:
-        return await event.edit("Belum ada list spam yang diset.")
-    res = {}
-    for row in all_lists:
-        res.setdefault(row.namalist, []).append(row.grup)
-    teks = ""
-    for namalist, grups in res.items():
-        teks += f"List `{namalist}`:\n"
-        teks += "\n".join(grups) + "\n\n"
+        return await event.edit("Belum ada list spam.")
+    teks = "**Daftar Spam yang Disimpan:**\n"
+    for nama, grups in all_lists.items():
+        teks += f"\n- `{nama}`: {', '.join(grups)}"
     await event.edit(teks)
 
-@ayiin_cmd(pattern=r"rlist (.+)")
+@ayiin_cmd(pattern=r"rlist (\w+)")
 async def rlist(event):
-    namalist = event.pattern_match.group(1).strip()
-    if not namalist:
-        return await event.edit(f"Format salah.\nContoh: `{cmd}rlist namalist`")
-    await stop_all_tasks(namalist)
-    db.delete_list(namalist)
-    await event.edit(f"List `{namalist}` dan grupnya sudah dihapus dan spam dihentikan jika aktif.")
+    namalist = event.pattern_match.group(1)
+    delete_list(namalist)
+    await event.edit(f"🗑️ List `{namalist}` dan grup-grupnya berhasil dihapus.")
 
-@ayiin_cmd(pattern="dbspam$")
+@ayiin_cmd(pattern=r"dbspam")
 async def dbspam(event):
     if not ACTIVE_SPAM:
         return await event.edit("Tidak ada spam yang sedang berjalan.")
-    teks = "Spam aktif:\n"
-    for namalist, tasks in ACTIVE_SPAM.items():
-        teks += f"- List `{namalist}`, jumlah task: {len(tasks)}\n"
+    teks = "**Spam yang Sedang Aktif:**\n"
+    for nama in ACTIVE_SPAM:
+        teks += f"- `{nama}`\n"
     await event.edit(teks)
 
-async def spam_text(client, chat, teks, delay, stop_time):
-    while True:
-        now = datetime.now().time()
-        if now >= stop_time:
-            break
-        try:
-            await client.send_message(chat, teks)
-            await asyncio.sleep(delay)
-        except FloodWaitError as e:
-            await asyncio.sleep(e.seconds)
-        except asyncio.CancelledError:
-            break
-        except Exception:
-            break
-
-async def spam_media(client, chat, reply_msg, delay, stop_time):
-    while True:
-        now = datetime.now().time()
-        if now >= stop_time:
-            break
-        try:
-            await reply_msg.forward_to(chat)
-            await asyncio.sleep(delay)
-        except FloodWaitError as e:
-            await asyncio.sleep(e.seconds)
-        except asyncio.CancelledError:
-            break
-        except Exception:
-            break
-
-async def spam_forward(client, chat, from_chat, msg_id, delay, stop_time):
-    while True:
-        now = datetime.now().time()
-        if now >= stop_time:
-            break
-        try:
-            await client.forward_messages(chat, msg_id, from_chat)
-            await asyncio.sleep(delay)
-        except FloodWaitError as e:
-            await asyncio.sleep(e.seconds)
-        except asyncio.CancelledError:
-            break
-        except Exception:
-            break
-
-@ayiin_cmd(pattern=r"unspam (.+)")
+@ayiin_cmd(pattern=r"unspam ([0-9]{1,2}:[0-9]{2}) (\d+) (\w+) (.+)", allow_sudo=True)
 async def unspam(event):
-    args = event.pattern_match.group(1)
-    parts = args.split(maxsplit=2)
-    if len(parts) < 2 and not event.reply_to_msg_id:
-        return await event.edit(f"Format salah.\nContoh:\n`{cmd}unspam 12:00 5 Halo semua!`\natau balas pesan dengan:\n`{cmd}unspam 12:00 5`")
-    jam_stop = parts[0]
-    try:
-        delay = int(parts[1])
-    except:
-        return await event.edit("Delay harus angka detik (contoh: 5)")
+    jam_stop, delay, namalist, teks = event.pattern_match.group(1), int(event.pattern_match.group(2)), event.pattern_match.group(3), event.pattern_match.group(4)
 
-    teks = parts[2] if len(parts) == 3 else None
-
-    stop_time = parse_time(jam_stop)
-    if not stop_time:
-        return await event.edit("Format jam salah, harus HH:MM (contoh 12:00)")
-
-    namalist = "default"
-    grups_db = db.get_grup_by_list(namalist)
+    grups_db = get_groups_by_list(namalist)
     if not grups_db:
         return await event.edit(f"List `{namalist}` kosong, tambahkan grup dengan `.sgrup {namalist} @group` terlebih dahulu.")
 
-    await event.edit(f"Mulai spam ke {len(grups_db)} grup, akan berhenti jam {jam_stop}")
+    now = datetime.now()
+    stop_time = datetime.strptime(jam_stop, "%H:%M").replace(year=now.year, month=now.month, day=now.day)
+    if stop_time < now:
+        stop_time += timedelta(days=1)
 
-    reply_msg = None
-    if event.reply_to_msg_id:
-        reply_msg = await event.get_reply_message()
+    await event.edit(f"⏳ Mulai spam ke list `{namalist}`, akan berhenti jam {jam_stop}")
+
+    async def spam_text(client, chat, teks, delay, stop_time):
+        while datetime.now() < stop_time:
+            try:
+                await client.send_message(chat, teks, parse_mode="html")
+            except Exception:
+                pass
+            await asyncio.sleep(delay)
 
     tasks = []
     for grup in grups_db:
-        chat = grup.grup
-        if teks:
-            task = asyncio.create_task(spam_text(event.client, chat, teks, delay, stop_time))
-        elif reply_msg:
-            task = asyncio.create_task(spam_media(event.client, chat, reply_msg, delay, stop_time))
-        else:
-            await event.edit("Teks spam tidak ditemukan dan tidak ada pesan balasan untuk spam media.")
-            return
+        task = asyncio.create_task(spam_text(event.client, grup.grup, teks, delay, stop_time))
         tasks.append(task)
 
     ACTIVE_SPAM[namalist] = tasks
 
-@ayiin_cmd(pattern=r"unfw (.+)")
+@ayiin_cmd(pattern=r"unfw ([0-9]{1,2}:[0-9]{2}) (\d+) (\w+) (https://t.me/[^/]+/(\d+))", allow_sudo=True)
 async def unfw(event):
-    args = event.pattern_match.group(1)
-    parts = args.split(maxsplit=2)
-    if len(parts) < 2:
-        return await event.edit(f"Format salah.\nContoh:\n`{cmd}unfw 12:00 5 https://t.me/jasebxall/6`\n(Spam forward pesan dari channel ke grup)")
-
-    jam_stop = parts[0]
-    try:
-        delay = int(parts[1])
-    except:
-        return await event.edit("Delay harus angka detik (contoh: 5)")
-
-    if len(parts[1].split()) < 2 and len(parts) < 3:
-        return await event.edit("Harap sertakan link pesan bubble chat channel.")
-
-    link = parts[2] if len(parts) >= 3 else parts[1].split(maxsplit=1)[1]
-
-    stop_time = parse_time(jam_stop)
-    if not stop_time:
-        return await event.edit("Format jam salah, harus HH:MM (contoh 12:00)")
-
-    match = re.search(r"t\.me\/([^\/]+)\/(\d+)", link)
-    if not match:
-        return await event.edit("Link pesan channel tidak valid.")
-
-    channel_username = match.group(1)
-    pesan_nomor = int(match.group(2))
-
-    namalist = "default"
-    grups_db = db.get_grup_by_list(namalist)
+    jam_stop, delay, namalist, link, pesan_id = event.pattern_match.group(1), int(event.pattern_match.group(2)), event.pattern_match.group(3), event.pattern_match.group(4), int(event.pattern_match.group(5))
+    grups_db = get_groups_by_list(namalist)
     if not grups_db:
         return await event.edit(f"List `{namalist}` kosong, tambahkan grup dengan `.sgrup {namalist} @group` terlebih dahulu.")
 
-    await event.edit(f"Mulai spam forward, akan berhenti jam {jam_stop}")
+    now = datetime.now()
+    stop_time = datetime.strptime(jam_stop, "%H:%M").replace(year=now.year, month=now.month, day=now.day)
+    if stop_time < now:
+        stop_time += timedelta(days=1)
+
+    chat_regex = re.match(r"https://t.me/([^/]+)/", link)
+    if not chat_regex:
+        return await event.edit("Link tidak valid.")
+    channel_username = chat_regex.group(1)
+
+    await event.edit(f"⏳ Mulai spam forward, akan berhenti jam {jam_stop}")
+
+    async def spam_forward(client, chat, channel_username, message_id, delay, stop_time):
+        while datetime.now() < stop_time:
+            try:
+                await client.forward_messages(chat, message_id, from_peer=channel_username)
+            except Exception:
+                pass
+            await asyncio.sleep(delay)
 
     tasks = []
     for grup in grups_db:
-        chat = grup.grup
-        task = asyncio.create_task(
-            spam_forward(event.client, chat, channel_username, pesan_nomor, delay, stop_time)
-        )
+        task = asyncio.create_task(spam_forward(event.client, grup.grup, channel_username, pesan_id, delay, stop_time))
         tasks.append(task)
 
     ACTIVE_SPAM[namalist] = tasks
 
-@ayiin_cmd(pattern=r"dnspam (.+)")
+@ayiin_cmd(pattern=r"dnspam (\w+)")
 async def dnspam(event):
     namalist = event.pattern_match.group(1).strip()
     if not namalist:
@@ -229,4 +125,4 @@ async def dnspam(event):
     if namalist not in ACTIVE_SPAM:
         return await event.edit(f"Tidak ada spam aktif di list `{namalist}`.")
     await stop_all_tasks(namalist)
-    await event.edit(f"Spam pada list `{namalist}` berhasil dihentikan.")                                      
+    await event.edit(f"✅ Spam pada list `{namalist}` berhasil dihentikan.")
