@@ -4,37 +4,73 @@ except ImportError:
     raise AttributeError("Gagal import SQL Helper")
 
 from sqlalchemy import Column, String
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
+from threading import Lock
 
-class SpamJadwal(BASE):
-    __tablename__ = "spam_jadwal"
-    namalist = Column(String, primary_key=True)
+# Ganti URL sesuai konfigurasi database lo
+DATABASE_URL = 'sqlite:///spamjadwal.db'  # atau PostgreSQL URL dari Heroku
+
+Base = declarative_base()
+engine = create_engine(DATABASE_URL)
+Session = sessionmaker(bind=engine)
+SPAMJADWAL_LOCK = Lock()
+
+class SpamJadwal(Base):
+    __tablename__ = 'spamjadwal'
+    nama = Column(String, primary_key=True)
     grup = Column(String, primary_key=True)
 
-    def __init__(self, namalist, grup):
-        self.namalist = namalist
-        self.grup = grup
+Base.metadata.create_all(engine)
 
-BASE.metadata.create_all(bind=SESSION.get_bind())
+def add_group_to_list(nama, grup):
+    with SPAMJADWAL_LOCK:
+        session = Session()
+        entry = session.query(SpamJadwal).filter_by(nama=nama, grup=grup).first()
+        if not entry:
+            session.add(SpamJadwal(nama=nama, grup=grup))
+            session.commit()
+        session.close()
 
-def add_grup(namalist, grup):
-    exists = SESSION.query(SpamJadwal).filter_by(namalist=namalist, grup=grup).first()
-    if not exists:
-        row = SpamJadwal(namalist, grup)
-        SESSION.add(row)
-        SESSION.commit()
+def remove_group_from_list(nama, grup):
+    with SPAMJADWAL_LOCK:
+        session = Session()
+        entry = session.query(SpamJadwal).filter_by(nama=nama, grup=grup).first()
+        if entry:
+            session.delete(entry)
+            session.commit()
+        session.close()
 
-def remove_grup(namalist, grup):
-    row = SESSION.query(SpamJadwal).filter_by(namalist=namalist, grup=grup).first()
-    if row:
-        SESSION.delete(row)
-        SESSION.commit()
+def get_groups_by_list(nama):
+    with SPAMJADWAL_LOCK:
+        session = Session()
+        result = session.query(SpamJadwal).filter_by(nama=nama).all()
+        session.close()
+        return result
 
-def get_grup_by_list(namalist):
-    return SESSION.query(SpamJadwal).filter_by(namalist=namalist).all()
+def delete_list(nama):
+    with SPAMJADWAL_LOCK:
+        session = Session()
+        session.query(SpamJadwal).filter_by(nama=nama).delete()
+        session.commit()
+        session.close()
 
-def get_all_lists():
-    return SESSION.query(SpamJadwal).all()
+def list_all_lists():
+    with SPAMJADWAL_LOCK:
+        session = Session()
+        result = session.query(SpamJadwal.nama).distinct().all()
+        session.close()
+        return [r[0] for r in result]
 
-def delete_list(namalist):
-    SESSION.query(SpamJadwal).filter_by(namalist=namalist).delete()
-    SESSION.commit()
+def get_all_lists_with_groups():
+    with SPAMJADWAL_LOCK:
+        session = Session()
+        all_entries = session.query(SpamJadwal).all()
+        session.close()
+        lists = {}
+        for entry in all_entries:
+            if entry.nama not in lists:
+                lists[entry.nama] = []
+            lists[entry.nama].append(entry.grup)
+        return lists
