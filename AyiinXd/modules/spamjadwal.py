@@ -97,80 +97,73 @@ async def rlist(event):
 # Command spam teks ke grup dengan jadwal berhenti dan delay
 @ayiin_cmd(pattern=f"unspam(?:\\s+)(.*)")
 async def unspam(event):
-    args = event.pattern_match.group(1).split(" ", 3)
+    args = event.pattern_match.group(1).split(" ", 2)
     if len(args) < 3:
-        return await event.reply(
-            f"Format salah!\nGunakan:\n`{cmd}unspam <jam_berhenti> <delay> <namalist> [teks spam (optional jika reply media)]`"
-        )
+        return await event.reply(f"Format salah!\nGunakan:\n`{cmd}unspam <jam_berhenti> <delay> <namalist>`\n\nReply teks/media untuk konten yang akan dikirim.")
 
-    jam_henti, delay, namalist = args[0], args[1], args[2]
-    teks = args[3] if len(args) > 3 else None
+    jam_henti, delay, namalist = args
+    try:
+        delay = int(delay)
+    except ValueError:
+        return await event.reply("Delay harus berupa angka (detik).")
 
+    # Ambil zona waktu user (default Asia/Jakarta)
     zona_input = get_user_timezone(str(event.sender_id)) or "WIB"
     tz = pytz.timezone(zona_map.get(zona_input, "Asia/Jakarta"))
 
-    now = datetime.now(tz)
     try:
-        input_time = datetime.strptime(jam_henti, "%H:%M").time()
-        jam_stop_today = tz.localize(datetime.combine(now.date(), input_time))
-        jam_stop = jam_stop_today + timedelta(days=1) if jam_stop_today <= now else jam_stop_today
+        now = datetime.now(tz)
+        jam_stop = tz.localize(datetime.combine(now.date(), datetime.strptime(jam_henti, "%H:%M").time()))
+        if jam_stop < now:
+            jam_stop += timedelta(days=1)  # Kalau jam udah lewat, set untuk besok
     except Exception:
-        return await event.reply("Format jam salah! Contoh: `12:30`")
+        return await event.reply("Format jam salah! Contoh: `20:30`")
 
-    groups = get_groups_by_list(namalist)
-    if not groups:
+    grups = get_groups_by_list(namalist)
+    if not grups:
         return await event.reply(f"List `{namalist}` kosong atau tidak ditemukan.")
 
-    reply_msg = await event.get_reply_message()
+    reply = await event.get_reply_message()
+    media = reply.media if reply and reply.media else None
+    teks = reply.text if reply and reply.text else None
 
-    if not teks and not reply_msg:
-        return await event.reply("Kamu harus kirim teks atau reply ke media!")
+    if not teks and not media:
+        return await event.reply("Harus reply teks/media untuk dikirim.")
 
-    await event.reply(
-        f"🚀 Mulai spam ke list `{namalist}` dengan delay {delay}s. Stop jam {jam_stop.strftime('%H:%M')} ({zona_input})"
-    )
+    await event.reply(f"🚀 Mulai spam ke list `{namalist}`\n⏰ Berhenti jam `{jam_henti}` ({zona_input})\n⏱️ Delay: {delay} detik")
 
-    async def spam_task():
+    async def spam_loop():
         counter = 0
         while True:
             now = datetime.now(tz)
             if now >= jam_stop:
                 if BOTLOG_CHATID:
-                    log_msg = (
-                        f"📛 **SPAM SELESAI**\n\n"
-                        f"📂 Nama List : `{namalist}`\n"
-                        f"⏰ Waktu Berhenti : `{jam_stop.strftime('%H:%M')} ({zona_input})`\n"
+                    msg = (
+                        f"✅ **SPAM SELESAI**\n\n"
+                        f"📂 List : `{namalist}`\n"
+                        f"🕒 Waktu Stop : `{jam_henti} ({zona_input})`\n"
                         f"📊 Total Pesan : `{counter}`\n"
-                        f"📎 Mode : {'Media + Caption' if reply_msg else 'Teks'}"
+                        f"🎯 Mode : {'Media + Caption' if media else 'Teks'}"
                     )
                     if teks:
-                        log_msg += f"\n🧠 Teks:\n{teks}"
-                    await event.client.send_message(BOTLOG_CHATID, log_msg)
+                        msg += f"\n📝 Teks:\n`{teks}`"
+                    await event.client.send_message(BOTLOG_CHATID, msg)
                 break
 
-            for group in groups:
+            for g in grups:
                 try:
-                    if reply_msg:
-                        await reply_msg.copy_to(
-                            group,
-                            caption=teks or reply_msg.text or "",
-                            parse_mode="markdown"
-                        )
+                    if media:
+                        await event.client.send_file(g, media, caption=teks or None, parse_mode="Markdown")
                     else:
-                        await event.client.send_message(
-                            group,
-                            teks,
-                            parse_mode="markdown",
-                            link_preview=False
-                        )
+                        await event.client.send_message(g, teks, parse_mode="Markdown", link_preview=False)
                     counter += 1
                 except FloodWaitError as e:
                     await asyncio.sleep(e.seconds)
-                except Exception:
-                    pass
-                await asyncio.sleep(int(delay))
+                except Exception as e:
+                    print(f"[UNSPAM ERROR] {e}")
+                await asyncio.sleep(delay)
 
-    task = asyncio.create_task(spam_task())
+    task = asyncio.create_task(spam_loop())
     ACTIVE_SPAM.setdefault(namalist, []).append(task)
     
 # Command spam forward pesan dari channel ke grup dengan jadwal berhenti dan delay
