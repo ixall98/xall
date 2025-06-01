@@ -4,7 +4,14 @@ from datetime import datetime, time as dtime
 from telethon.errors.rpcerrorlist import FloodWaitError
 from AyiinXd.ayiin import ayiin_cmd
 from AyiinXd import CMD_HANDLER as cmd
-from AyiinXd.modules.sql_helper import spamjadwal_sql as db
+from AyiinXd.modules.spamjadwal_sql import (
+    add_group_to_list,
+    remove_group_from_list,
+    get_groups_by_list,
+    delete_list,
+    list_all_lists,
+    get_all_lists_with_groups
+)
 
 ACTIVE_SPAM = {}
 
