@@ -9,9 +9,9 @@ from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy import create_engine
 from threading import Lock
 
+# Zona waktu user
 class ZonaWaktu(BASE):
     __tablename__ = "zona_waktu"
-    __table_args__ = {'extend_existing': True}
     user_id = Column(String, primary_key=True)
     zona = Column(String)
 
@@ -28,50 +28,53 @@ def get_user_timezone(user_id):
     result = SESSION.query(ZonaWaktu).get(str(user_id))
     return result.zona if result else "WIB"
 
-# Table for spam lists
-class SpamList(BASE):
-    __tablename__ = "spam_list"
-    __table_args__ = {'extend_existing': True}
+# Spam jadwal list (dilengkapin)
+class JadwalSpamList(BASE):
+    __tablename__ = "jadwal_spam_list"
     name = Column(String, primary_key=True)
-    groups = relationship("SpamGroup", cascade="all, delete", backref="list")
+    type = Column(String)  # "biasa" atau "fw"
+    content = Column(String)
+    delay = Column(Integer)
+    groups = relationship("JadwalSpamGroup", cascade="all, delete", backref="list")
 
-class SpamGroup(BASE):
-    __tablename__ = "spam_group"
-    __table_args__ = {'extend_existing': True}
+class JadwalSpamGroup(BASE):
+    __tablename__ = "jadwal_spam_group"
     id = Column(String, primary_key=True)
-    list_name = Column(String, ForeignKey("spam_list.name"))
+    list_name = Column(String, ForeignKey("jadwal_spam_list.name"))
     group_username = Column(String)
 
-def add_group_to_list(list_name, group_username):
-    # Ensure list exists
-    spam_list = SESSION.query(SpamList).get(list_name)
-    if not spam_list:
-        spam_list = SpamList(name=list_name)
-        SESSION.add(spam_list)
-    # Check if group exists in list
-    exists = SESSION.query(SpamGroup).filter_by(list_name=list_name, group_username=group_username).first()
-    if not exists:
-        new_group = SpamGroup(id=f"{list_name}_{group_username}", list_name=list_name, group_username=group_username)
-        SESSION.add(new_group)
+# CRUD untuk spam jadwal
+def add_jadwal_list(name, type, content, delay):
+    data = SESSION.query(JadwalSpamList).filter_by(name=name).first()
+    if data:
+        data.type = type
+        data.content = content
+        data.delay = delay
+    else:
+        data = JadwalSpamList(name=name, type=type, content=content, delay=delay)
+        SESSION.add(data)
     SESSION.commit()
 
-def remove_group_from_list(list_name, group_username):
-    group = SESSION.query(SpamGroup).filter_by(list_name=list_name, group_username=group_username).first()
-    if group:
-        SESSION.delete(group)
-        SESSION.commit()
+def get_jadwal_list(name):
+    return SESSION.query(JadwalSpamList).filter_by(name=name).first()
 
-def get_groups_by_list(list_name):
-    spam_list = SESSION.query(SpamList).get(list_name)
-    if not spam_list:
-        return []
-    return [g.group_username for g in spam_list.groups]
+def get_all_jadwal_lists():
+    return SESSION.query(JadwalSpamList).all()
 
-def get_all_lists():
-    return SESSION.query(SpamList).all()
+def remove_jadwal_list(name):
+    SESSION.query(JadwalSpamList).filter_by(name=name).delete()
+    SESSION.query(JadwalSpamGroup).filter_by(list_name=name).delete()
+    SESSION.commit()
 
-def remove_list(list_name):
-    spam_list = SESSION.query(SpamList).get(list_name)
-    if spam_list:
-        SESSION.delete(spam_list)
-        SESSION.commit()
+def add_groups_to_jadwal(name, groups):
+    for g in groups:
+        if not SESSION.query(JadwalSpamGroup).filter_by(list_name=name, group_username=g).first():
+            SESSION.add(JadwalSpamGroup(id=f"{name}_{g}", list_name=name, group_username=g))
+    SESSION.commit()
+
+def get_groups_by_jadwal(name):
+    return [g.group_username for g in SESSION.query(JadwalSpamGroup).filter_by(list_name=name).all()]
+
+def remove_group_from_jadwal(name, group):
+    SESSION.query(JadwalSpamGroup).filter_by(list_name=name, group_username=group).delete()
+    SESSION.commit()
