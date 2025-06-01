@@ -100,13 +100,18 @@ async def unspam(event):
     args = event.pattern_match.group(1).split(" ", 3)
     if len(args) < 4:
         return await event.reply(f"Format salah! {cmd}unspam <jam_berhenti> <delay> <namalist> <teks spam>")
+
     jam_henti, delay, namalist, teks = args[0], args[1], args[2], args[3]
 
     zona_input = get_user_timezone(str(event.sender_id)) or "WIB"
     tz = pytz.timezone(zona_map.get(zona_input, "Asia/Jakarta"))
 
+    now = datetime.now(tz)
     try:
-        jam_stop = tz.localize(datetime.strptime(jam_henti, "%H:%M"))
+        jam_stop = datetime.strptime(jam_henti, "%H:%M")
+        jam_stop = tz.localize(jam_stop.replace(year=now.year, month=now.month, day=now.day))
+        if jam_stop <= now:
+            jam_stop += timedelta(days=1)
     except Exception:
         return await event.reply("Format jam salah, harus HH:MM")
 
@@ -114,13 +119,16 @@ async def unspam(event):
     if not groups:
         return await event.reply(f"Nama list '{namalist}' tidak ditemukan atau grupnya kosong.")
 
-    await event.reply(f"🚀 Mulai spam ke grup di list `{namalist}` dengan delay {delay} detik. Akan berhenti jam {jam_henti} ({zona_input})")
+    await event.reply(
+        f"🚀 Mulai spam ke grup di list `{namalist}` dengan delay {delay} detik.\n"
+        f"⏰ Akan berhenti jam {jam_henti} ({zona_input})"
+    )
 
     async def spam_task():
         counter = 0
         while True:
-            now = datetime.now(tz)
-            if now >= jam_stop:
+            now_loop = datetime.now(tz)
+            if now_loop >= jam_stop:
                 if BOTLOG_CHATID:
                     log_msg = (
                         f"📛 **SPAM SELESAI**\n\n"
@@ -143,20 +151,26 @@ async def unspam(event):
 
     task = asyncio.create_task(spam_task())
     ACTIVE_SPAM.setdefault(namalist, []).append(task)
-
+    
 # Command spam forward pesan dari channel ke grup dengan jadwal berhenti dan delay
 @ayiin_cmd(pattern=f"unfw(?:\\s+)(.*)")
 async def unfw(event):
     args = event.pattern_match.group(1).split(" ", 3)
     if len(args) < 4:
         return await event.reply(f"Format salah! {cmd}unfw <jam_berhenti> <delay> <namalist> <link bubble chat dari channel>")
+
     jam_henti, delay, namalist, link = args[0], args[1], args[2], args[3]
 
     zona_input = get_user_timezone(str(event.sender_id)) or "WIB"
     tz = pytz.timezone(zona_map.get(zona_input, "Asia/Jakarta"))
+    now = datetime.now(tz)
 
+    # Perbaikan parsing jam + tanggal agar tidak langsung selesai
     try:
-        jam_stop = tz.localize(datetime.strptime(jam_henti, "%H:%M"))
+        jam_stop = datetime.strptime(jam_henti, "%H:%M")
+        jam_stop = tz.localize(jam_stop.replace(year=now.year, month=now.month, day=now.day))
+        if jam_stop <= now:
+            jam_stop += timedelta(days=1)
     except Exception:
         return await event.reply("Format jam salah, harus HH:MM")
 
@@ -169,13 +183,16 @@ async def unfw(event):
     except Exception as e:
         return await event.reply(f"Gagal ambil pesan dari link: {e}")
 
-    await event.reply(f"🚀 Mulai spam forward ke grup di list `{namalist}` dengan delay {delay} detik. Akan berhenti jam {jam_henti} ({zona_input})")
+    await event.reply(
+        f"🚀 Mulai spam forward ke grup di list `{namalist}` dengan delay {delay} detik.\n"
+        f"⏰ Akan berhenti jam {jam_henti} ({zona_input})"
+    )
 
     async def fw_task():
         counter = 0
         while True:
-            now = datetime.now(tz)
-            if now >= jam_stop:
+            now_loop = datetime.now(tz)
+            if now_loop >= jam_stop:
                 if BOTLOG_CHATID:
                     context = event.chat_id if event.is_private else get_display_name(await event.get_chat())
                     log_msg = (
