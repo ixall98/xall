@@ -3,7 +3,7 @@ try:
 except ImportError:
     raise AttributeError("Gagal import SQL Helper")
 
-from sqlalchemy import Table, Column, String, ForeignKey
+from sqlalchemy import Table, Column, String, ForeignKey, Integer
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy import create_engine
