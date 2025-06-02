@@ -3,6 +3,7 @@ from AyiinXd.ayiin import ayiin_cmd
 from telethon import events
 from .sql_helper import autokomen_sql as db
 
+
 # ➕ SET CHANNEL
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
 async def _(event):
@@ -17,6 +18,7 @@ async def _(event):
     db.set_last(channel_id)
     await event.edit(f"✅ Channel `{channel_id}` siap buat auto komen.")
 
+
 # 🗑️ HAPUS CHANNEL
 @ayiin_cmd(pattern="delch(?: |$)(.*)")
 async def _(event):
@@ -25,6 +27,7 @@ async def _(event):
         channel_id = "@" + channel_id
     db.delete_komen(channel_id)
     await event.edit(f"🗑️ Channel `{channel_id}` dihapus dari daftar.")
+
 
 # 📝 SET KOMEN + TRIGGER SEKALIGUS
 @ayiin_cmd(pattern="setkomen(?: |$)(.*)")
@@ -49,6 +52,7 @@ async def _(event):
     db.SESSION.commit()
     await event.edit(f"💬 Auto komen: `{teks_komen}`\n🔑 Trigger: `{trigger}`")
 
+
 # 🗑️ HAPUS KOMEN + TRIGGER
 @ayiin_cmd(pattern="delkomen$")
 async def _(event):
@@ -61,6 +65,7 @@ async def _(event):
     db.SESSION.commit()
     await event.edit("✅ Auto komen & trigger dihapus.")
 
+
 # 📋 LIHAT SEMUA
 @ayiin_cmd(pattern="listkomen$")
 async def _(event):
@@ -72,7 +77,8 @@ async def _(event):
         msg += f"\n📢 `{row.channel_id}`\n🔑 `{row.trigger}`\n💬 `{row.reply}`\n"
     await event.edit(msg)
 
-# 🔁 HANDLER OTOMATIS
+
+# 🔁 HANDLER OTOMATIS (Fix Filter)
 async def komen_channel(event):
     if event.chat.username is None:
         return
@@ -80,9 +86,16 @@ async def komen_channel(event):
     komen = db.get_komen(channel_id)
     if not komen:
         return
-    if komen.trigger and komen.trigger.lower() not in event.raw_text.lower():
+
+    teks = (event.raw_text or "").lower()
+    trigger = komen.trigger.lower().split() if komen.trigger else []
+
+    # Cek apakah salah satu trigger match
+    if trigger and not any(kata in teks for kata in trigger):
         return
+
     if komen.reply:
         await event.reply(komen.reply)
 
+# 🔂 Pasang event listener
 bot.add_event_handler(komen_channel, events.NewMessage(incoming=True))
