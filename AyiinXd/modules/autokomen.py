@@ -3,6 +3,7 @@ from AyiinXd.ayiin import ayiin_cmd
 from telethon.tl.functions.messages import GetMessagesRequest
 from .sql_helper import autokomen_sql as db
 from telethon.tl.types import Message
+from telethon import events
 
 # SET TRIGGER + CHANNELS
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
