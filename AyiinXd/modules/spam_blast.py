@@ -32,6 +32,8 @@ async def onspamloop(event):
     nama = event.pattern_match.group(2).strip()
     teks = event.pattern_match.group(3).strip()
 
+    spam_sql.update_list(nama, "spam", delay, teks)
+
     if nama in active_spams:
         return await event.edit(f"🚫 spam `{nama}` sudah berjalan!")
 
@@ -66,6 +68,8 @@ async def onfwloop(event):
     nama = event.pattern_match.group(2).strip()
     link = event.pattern_match.group(3).strip()
 
+    spam_sql.update_list(nama, "forward", delay, link)
+    
     if nama in active_spams:
         return await event.edit(f"🚫 spam forward `{nama}` sudah berjalan!")
 
