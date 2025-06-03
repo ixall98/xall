@@ -54,3 +54,11 @@ def get_groups(name):
 def delete_group(name, group):
     SESSION.query(SpamGroup).filter_by(list_name=name, group_username=group).delete()
     SESSION.commit()
+
+def update_list(name, type, delay, content):
+    data = SESSION.query(SpamList).filter_by(name=name).first()
+    if data:
+        data.type = type
+        data.delay = delay
+        data.content = content
+        SESSION.commit()
