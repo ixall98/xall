@@ -97,17 +97,15 @@ async def rlist(event):
 # Command spam teks ke grup dengan jadwal berhenti dan delay
 @ayiin_cmd(pattern=f"unspam(?:\\s+)(.*)")
 async def unspam(event):
-    args = event.pattern_match.group(1).split(" ", 2)
+    args = event.pattern_match.group(1).split(" ", 3)
     if len(args) < 3:
-        return await event.reply(f"Format salah!\nGunakan:\n`{cmd}unspam <jam_berhenti> <delay> <namalist>`\n\nReply teks/media untuk konten yang akan dikirim.")
+        return await event.reply(
+            f"Format salah!\nGunakan:\n`{cmd}unspam <jam_berhenti> <delay> <namalist> [teks spam (optional jika reply media)]`"
+        )
 
-    jam_henti, delay, namalist = args
-    try:
-        delay = int(delay)
-    except ValueError:
-        return await event.reply("Delay harus berupa angka (detik).")
+    jam_henti, delay, namalist = args[0], args[1], args[2]
+    teks = args[3] if len(args) > 3 else None
 
-    # Ambil zona waktu user (default Asia/Jakarta)
     zona_input = get_user_timezone(str(event.sender_id)) or "WIB"
     tz = pytz.timezone(zona_map.get(zona_input, "Asia/Jakarta"))
 
@@ -115,74 +113,7 @@ async def unspam(event):
         now = datetime.now(tz)
         jam_stop = tz.localize(datetime.combine(now.date(), datetime.strptime(jam_henti, "%H:%M").time()))
         if jam_stop < now:
-            jam_stop += timedelta(days=1)  # Kalau jam udah lewat, set untuk besok
-    except Exception:
-        return await event.reply("Format jam salah! Contoh: `20:30`")
-
-    grups = get_groups_by_list(namalist)
-    if not grups:
-        return await event.reply(f"List `{namalist}` kosong atau tidak ditemukan.")
-
-    reply = await event.get_reply_message()
-    media = reply.media if reply and reply.media else None
-    teks = reply.text if reply and reply.text else None
-
-    if not teks and not media:
-        return await event.reply("Harus reply teks/media untuk dikirim.")
-
-    await event.reply(f"🚀 Mulai spam ke list `{namalist}`\n⏰ Berhenti jam `{jam_henti}` ({zona_input})\n⏱️ Delay: {delay} detik")
-
-    async def spam_loop():
-        counter = 0
-        while True:
-            now = datetime.now(tz)
-            if now >= jam_stop:
-                if BOTLOG_CHATID:
-                    msg = (
-                        f"✅ **SPAM SELESAI**\n\n"
-                        f"📂 List : `{namalist}`\n"
-                        f"🕒 Waktu Stop : `{jam_henti} ({zona_input})`\n"
-                        f"📊 Total Pesan : `{counter}`\n"
-                        f"🎯 Mode : {'Media + Caption' if media else 'Teks'}"
-                    )
-                    if teks:
-                        msg += f"\n📝 Teks:\n`{teks}`"
-                    await event.client.send_message(BOTLOG_CHATID, msg)
-                break
-
-            for g in grups:
-                try:
-                    if media:
-                        await event.client.send_file(g, media, caption=teks or None, parse_mode="Markdown")
-                    else:
-                        await event.client.send_message(g, teks, parse_mode="Markdown", link_preview=False)
-                    counter += 1
-                except FloodWaitError as e:
-                    await asyncio.sleep(e.seconds)
-                except Exception as e:
-                    print(f"[UNSPAM ERROR] {e}")
-                await asyncio.sleep(delay)
-
-    task = asyncio.create_task(spam_loop())
-    ACTIVE_SPAM.setdefault(namalist, []).append(task)
-    
-# Command spam forward pesan dari channel ke grup dengan jadwal berhenti dan delay
-@ayiin_cmd(pattern=f"unfw(?:\\s+)(.*)")
-async def unfw(event):
-    args = event.pattern_match.group(1).split(" ", 3)
-    if len(args) < 4:
-        return await event.reply(f"Format salah!\nGunakan:\n`{cmd}unfw <jam_berhenti> <delay> <namalist> <link bubble chat dari channel>`")
-
-    jam_henti, delay, namalist, link = args[0], args[1], args[2], args[3]
-
-    zona_input = get_user_timezone(str(event.sender_id)) or "WIB"
-    tz = pytz.timezone(zona_map.get(zona_input, "Asia/Jakarta"))
-
-    now = datetime.now(tz)
-    try:
-        input_time = datetime.strptime(jam_henti, "%H:%M").time()
-        jam_stop_today = tz.localize(datetime.combine(now.date(), input_time))
-        jam_stop = jam_stop_today + timedelta(days=1) if jam_stop_today <= now else jam_stop_today
+            jam_stop += timedelta(days=1)
     except Exception:
         return await event.reply("Format jam salah! Contoh: `12:30`")
 
@@ -190,24 +121,92 @@ async def unfw(event):
     if not groups:
         return await event.reply(f"List `{namalist}` kosong atau tidak ditemukan.")
 
-    # Ambil channel & msg id dari link
-    try:
-        parts = link.split("/")
-        if "t.me/c/" in link:
-            chat_id = int("-100" + parts[4])
-            msg_id = int(parts[5])
-        elif "t.me/" in link:
-            chat_id = parts[3]
-            msg_id = int(parts[4])
-        else:
-            raise ValueError("Link tidak valid!")
-
-        message = await event.client.get_messages(chat_id, ids=msg_id)
-    except Exception as e:
-        return await event.reply(f"Gagal ambil pesan dari link:\n{e}")
+    reply_msg = await event.get_reply_message()
+    if not teks and not reply_msg:
+        return await event.reply("Kamu harus kirim teks atau reply ke media!")
 
     await event.reply(
-        f"🚀 Mulai spam forward ke list `{namalist}` dengan delay {delay}s. Stop jam {jam_stop.strftime('%H:%M')} ({zona_input})"
+        f"🚀 Mulai spam ke list `{namalist}` dengan delay {delay}s. Stop jam {jam_henti} ({zona_input})"
+    )
+
+    async def spam_task():
+        counter = 0
+        while True:
+            now = datetime.now(tz)
+            if now >= jam_stop:
+                if BOTLOG_CHATID:
+                    log_msg = (
+                        f"📛 **SPAM SELESAI**\n\n"
+                        f"📂 Nama List : `{namalist}`\n"
+                        f"⏰ Waktu Berhenti : `{jam_henti} ({zona_input})`\n"
+                        f"📊 Total Pesan : `{counter}`\n"
+                        f"📎 Mode : {'Media + Caption' if reply_msg else 'Teks'}"
+                    )
+                    if teks:
+                        log_msg += f"\n🧠 Teks :\n{teks}"
+                    await event.client.send_message(BOTLOG_CHATID, log_msg)
+                break
+
+            tasks = []
+            for group in groups:
+                try:
+                    if reply_msg:
+                        if teks:
+                            tasks.append(reply_msg.copy_to(group, caption=teks, parse_mode="Markdown"))
+                        else:
+                            tasks.append(reply_msg.copy_to(group))
+                    else:
+                        tasks.append(event.client.send_message(group, teks, parse_mode="Markdown", link_preview=False))
+                    counter += 1
+                except Exception:
+                    pass
+            await asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.sleep(int(delay))
+
+    task = asyncio.create_task(spam_task())
+    ACTIVE_SPAM.setdefault(namalist, []).append(task)
+    
+# Command spam forward pesan dari channel ke grup dengan jadwal berhenti dan delay
+@ayiin_cmd(pattern=f"unfw(?:\\s+)(.*)")
+async def unfw(event):
+    args = event.pattern_match.group(1).split(" ", 3)
+    if len(args) < 4:
+        return await event.reply(
+            f"Format salah!\nGunakan:\n`{cmd}unfw <jam_berhenti> <delay> <namalist> <link pesan channel>`"
+        )
+
+    jam_henti, delay, namalist, link = args[0], args[1], args[2], args[3]
+    zona_input = get_user_timezone(str(event.sender_id)) or "WIB"
+    tz = pytz.timezone(zona_map.get(zona_input, "Asia/Jakarta"))
+
+    try:
+        now = datetime.now(tz)
+        jam_stop = tz.localize(datetime.combine(now.date(), datetime.strptime(jam_henti, "%H:%M").time()))
+        if jam_stop < now:
+            jam_stop += timedelta(days=1)
+    except Exception:
+        return await event.reply("Format jam salah, harus HH:MM")
+
+    groups = get_groups_by_list(namalist)
+    if not groups:
+        return await event.reply(f"List `{namalist}` kosong atau tidak ditemukan.")
+
+    try:
+        if "t.me/" not in link:
+            raise ValueError("Link harus berupa https://t.me/username/123")
+
+        parts = link.split("/")
+        if len(parts) < 5:
+            raise ValueError("Format link salah, harus https://t.me/channel/1234")
+
+        channel_username = parts[3]
+        message_id = int(parts[4])
+        message = await event.client.get_messages(channel_username, ids=message_id)
+    except Exception as e:
+        return await event.reply(f"Gagal ambil pesan dari link: {e}")
+
+    await event.reply(
+        f"🚀 Mulai spam forward ke grup list `{namalist}` setiap {delay}s. Stop jam {jam_henti} ({zona_input})"
     )
 
     async def fw_task():
@@ -219,25 +218,23 @@ async def unfw(event):
                     log_msg = (
                         f"📛 **SPAM FORWARD SELESAI**\n\n"
                         f"📂 Nama List : `{namalist}`\n"
-                        f"⏰ Waktu Berhenti : `{jam_stop.strftime('%H:%M')} ({zona_input})`\n"
+                        f"⏰ Waktu Berhenti : `{jam_henti} ({zona_input})`\n"
                         f"📊 Total Pesan Ter-forward : `{counter}`\n"
                         f"🔗 Link : {link}"
                     )
                     await event.client.send_message(BOTLOG_CHATID, log_msg)
                 break
 
+            tasks = []
             for group in groups:
-                try:
-                    await event.client.forward_messages(group, message)
-                    counter += 1
-                except FloodWaitError as e:
-                    await asyncio.sleep(e.seconds)
-                except Exception:
-                    pass
-                await asyncio.sleep(int(delay))
+                tasks.append(event.client.forward_messages(group, message))
+                counter += 1
+            await asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.sleep(int(delay))
 
     task = asyncio.create_task(fw_task())
     ACTIVE_SPAM.setdefault(namalist, []).append(task)
+
     
 # Command stop dan hapus semua spam di nama list tertentu
 @ayiin_cmd(pattern=f"dnspam(?:\\s+)(.*)")
