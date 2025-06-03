@@ -98,22 +98,3 @@ async def handler(event):
                 except Exception as e:
                     await event.reply(f"[ERROR] Auto-komen gagal:\n{e}")
             break  # stop setelah komen pertama cocok
-
-CMD_HELP.update({
-    "autokomen": f"**Plugin:** `autokomen`
-
-• `{cmd}setch <trigger> <@channel1> <@channel2> ...`  
-   Set daftar channel untuk trigger tertentu.
-
-• `{cmd}setkomen <trigger>` (reply ke pesan)  
-   Set isi komen (support teks multiline, media, hyperlink).
-
-• `{cmd}delkomen <trigger>`  
-   Hapus komen dari trigger tertentu.
-
-• `{cmd}delch <@channel>`  
-   Hapus satu channel dari daftar.
-
-• `{cmd}listkomen`  
-   Lihat semua daftar auto komen."
-})
