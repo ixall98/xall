@@ -1,40 +1,47 @@
-from sqlalchemy import Column, String, Integer, PickleType
-from AyiinXd.modules.sql_helper import BASE, SESSION
+try:
+    from AyiinXd.modules.sql_helper import BASE, SESSION
+except ImportError:
+    raise AttributeError("Gagal import SQL Helper")
+
+from sqlalchemy import Column, String
 
 class AutoKomen(BASE):
-    __tablename__ = "autokomen_multi"
-    channel_id = Column(String, primary_key=True)
-    trigger = Column(String, primary_key=True)
-    reply_id = Column(Integer)
-
-class PendingKomen(BASE):
-    __tablename__ = "pending_autokomen"
-    user_id = Column(String, primary_key=True)
+    __tablename__ = "autokomen"
+    id = Column(String, primary_key=True)  # "<channel_id>|<trigger>"
+    channel_id = Column(String)
     trigger = Column(String)
-    channels = Column(PickleType)  # Simpan list channel
+    reply_id = Column(String, nullable=True)
+    reply_chat = Column(String, nullable=True)
 
 BASE.metadata.create_all(bind=SESSION.get_bind())
 
-def set_pending(user_id, trigger, channels):
-    old = SESSION.query(PendingKomen).filter_by(user_id=str(user_id)).first()
-    if old:
-        old.trigger = trigger
-        old.channels = channels
-    else:
-        pending = PendingKomen(user_id=str(user_id), trigger=trigger, channels=channels)
-        SESSION.add(pending)
-    SESSION.commit()
-
-def get_pending(user_id):
-    data = SESSION.query(PendingKomen).filter_by(user_id=str(user_id)).first()
-    if data:
-        return data.trigger, data.channels
-    return None
-
-def add_komen(channel_id, trigger, reply_id):
-    komen = AutoKomen(channel_id=channel_id, trigger=trigger, reply_id=reply_id)
+def add_komen(channel_id: str, trigger: str, reply_id: str = "", reply_chat: str = ""):
+    komen_id = f"{channel_id}|{trigger}"
+    komen = AutoKomen(id=komen_id, channel_id=channel_id, trigger=trigger, reply_id=reply_id, reply_chat=reply_chat)
     SESSION.merge(komen)
     SESSION.commit()
 
-def get_komen_by_channel(channel_id):
+def get_komen(channel_id: str, trigger: str):
+    komen_id = f"{channel_id}|{trigger}"
+    return SESSION.query(AutoKomen).filter_by(id=komen_id).first()
+
+def get_all_komen():
+    return SESSION.query(AutoKomen).all()
+
+def get_komen_by_channel(channel_id: str):
     return SESSION.query(AutoKomen).filter_by(channel_id=channel_id).all()
+
+def get_komen_by_trigger(trigger: str):
+    return SESSION.query(AutoKomen).filter_by(trigger=trigger).all()
+
+def delete_komen(channel_id: str, trigger: str):
+    komen = get_komen(channel_id, trigger)
+    if komen:
+        SESSION.delete(komen)
+        SESSION.commit()
+
+def delete_channel(channel_id: str):
+    rows = get_komen_by_channel(channel_id)
+    for row in rows:
+        SESSION.delete(row)
+    SESSION.commit()
