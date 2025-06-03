@@ -1,12 +1,50 @@
-from AyiinXd import CMD_HANDLER as cmd, CMD_HELP, bot
+from AyiinXd import CMD_HELP, bot
 from AyiinXd.ayiin import ayiin_cmd
 from telethon import events
 from telethon.tl.functions.messages import GetDiscussionMessageRequest
 from telethon.tl.types import Message
-
 from .sql_helper import autokomen_sql as db
 
 
+# 🔁 Handler auto-komen di comment section channel
+@bot.on(events.NewMessage(incoming=True))
+async def komen_comment_section(event):
+    if not isinstance(event.message, Message):
+        return
+    if not event.is_channel or event.chat.username is None:
+        return
+
+    channel_id = f"@{event.chat.username}"
+    komen = db.get_komen(channel_id)
+
+    if not komen or not komen.trigger or not komen.reply:
+        return
+
+    if komen.trigger.lower() not in (event.raw_text or "").lower():
+        return
+
+    try:
+        discussion = await bot(GetDiscussionMessageRequest(
+            peer=event.chat_id,
+            msg_id=event.id
+        ))
+
+        if not discussion.messages:
+            return
+
+        reply_msg = discussion.messages[0]
+        reply_chat_id = reply_msg.to_id.channel_id  # 🔧 FIXED LINE
+
+        await bot.send_message(
+            entity=reply_chat_id,
+            message=komen.reply,
+            reply_to=reply_msg.id
+        )
+    except Exception as e:
+        await bot.send_message("me", f"[ERROR] Auto-komen gagal:\n`{e}`")
+
+
+# ➕ SET CHANNEL
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
 async def _(event):
     channel_id = event.pattern_match.group(1)
@@ -21,11 +59,12 @@ async def _(event):
     await event.edit(f"✅ Channel `{channel_id}` siap buat auto komen.")
 
 
+# 📝 SET KOMEN + TRIGGER
 @ayiin_cmd(pattern="setkomen(?: |$)(.*)")
 async def _(event):
     args = event.pattern_match.group(1)
     if not args or " " not in args:
-        return await event.edit("Contoh: `.setkomen open ubot`")
+        return await event.edit("Contoh: `.setkomen Halo semua promo`")
 
     *komen_parts, trigger = args.split()
     teks_komen = " ".join(komen_parts)
@@ -44,6 +83,7 @@ async def _(event):
     await event.edit(f"💬 Auto komen: `{teks_komen}`\n🔑 Trigger: `{trigger}`")
 
 
+# 🗑️ HAPUS CHANNEL
 @ayiin_cmd(pattern="delch(?: |$)(.*)")
 async def _(event):
     channel_id = event.pattern_match.group(1)
@@ -53,6 +93,7 @@ async def _(event):
     await event.edit(f"🗑️ Channel `{channel_id}` dihapus dari daftar.")
 
 
+# 🗑️ HAPUS KOMEN
 @ayiin_cmd(pattern="delkomen$")
 async def _(event):
     channel_id = db.get_last()
@@ -65,6 +106,7 @@ async def _(event):
     await event.edit("✅ Auto komen & trigger dihapus.")
 
 
+# 📋 LIST SEMUA
 @ayiin_cmd(pattern="listkomen$")
 async def _(event):
     data = db.get_all_komen()
@@ -74,59 +116,3 @@ async def _(event):
     for row in data:
         msg += f"\n📢 `{row.channel_id}`\n🔑 `{row.trigger}`\n💬 `{row.reply}`\n"
     await event.edit(msg)
-
-
-# 🔁 AUTO KOMEN DI COMMENT SECTION
-@bot.on(events.NewMessage(incoming=True))
-async def komen_post(event):
-    if not isinstance(event.message, Message):
-        return
-    if not event.is_channel or event.chat.username is None:
-        return
-
-    channel_id = f"@{event.chat.username}"
-    komen = db.get_komen(channel_id)
-    if not komen or not komen.reply or not komen.trigger:
-        return
-
-    teks = (event.raw_text or "").lower()
-    if komen.trigger.lower() not in teks:
-        return
-
-    try:
-        discussion = await bot(GetDiscussionMessageRequest(
-            peer=event.chat_id,
-            msg_id=event.id
-        ))
-        if not discussion.messages or not discussion.messages[0].replies:
-            return
-
-        reply_chat = discussion.messages[0].replies.chat
-        reply_msg_id = discussion.messages[0].id
-
-        await bot.send_message(
-            entity=reply_chat.id,
-            message=komen.reply,
-            reply_to=reply_msg_id
-        )
-    except Exception as e:
-        await bot.send_message("me", f"[ERROR] Auto-komen gagal:\n{e}")
-        
-CMD_HELP.update({
-    "autokomen": f"**Plugin :** `autokomen`\
-\n\n📌 **Fungsi:** Auto-komen di comment section channel kalo postingan mengandung trigger tertentu.\
-\n\n**Perintah:**\
-\n➤ `{cmd}setch @username_channel`\
-\n▸ Set channel target buat auto komen.\
-\n\n➤ `{cmd}setkomen tekskomen trigger`\
-\n▸ Set teks komen & trigger pemicunya.\
-\n▸ Contoh: `{cmd}setkomen open ubot`\
-\n\n➤ `{cmd}delch @username_channel`\
-\n▸ Hapus channel dari daftar auto komen.\
-\n\n➤ `{cmd}delkomen`\
-\n▸ Hapus trigger dan teks komen untuk channel terakhir yang diset.\
-\n\n➤ `{cmd}listkomen`\
-\n▸ Liat semua channel dan settingan auto komen yang aktif.\
-\n\n💡 Bot akan otomatis komen di **kolom komentar postingan channel** kalau isi postingannya mengandung trigger.\
-\n✔️ Pastikan channel punya **grup diskusi**, dan userbot udah join channel & grup-nya."
-})
