@@ -6,6 +6,8 @@ from telethon.tl.functions.messages import GetRepliesRequest, SendMessageRequest
 from telethon.tl.types import Message
 from telethon.tl.types import InputPeerChannel, PeerChannel, PeerUser, PeerChat
 from telethon.tl.functions.channels import GetFullChannelRequest
+from telethon.tl.functions.messages import GetDiscussionMessageRequest
+from telethon.tl.types import Message
 
 # ✅ SET CHANNEL DENGAN TRIGGER
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
@@ -112,36 +114,39 @@ async def _(event):
     await event.edit(msg)
 
 # 🔁 HANDLER KOMEN
+# 🔁 Handler auto-komen di comment section channel
 @bot.on(events.NewMessage(incoming=True))
-async def _(event):
-    if not event.is_channel or not getattr(event.chat, "username", None):
+async def komen_comment_section(event):
+    if not isinstance(event.message, Message):
         return
-    ch = f"@{event.chat.username}"
-    data = db.get_komen_by_channel(ch)
-    if not data:
+    if not event.is_channel or event.chat.username is None:
         return
 
-    text = event.raw_text.lower()
-    for komen in data:
-        if komen.trigger.lower() in text and komen.reply_id and komen.reply_chat:
-            try:
-                original = await bot.get_messages(int(komen.reply_chat), ids=int(komen.reply_id))
+    channel_id = f"@{event.chat.username}"
+    komen = db.get_komen(channel_id)
 
-                # ambil comment section via GetRepliesRequest
-                replies = await bot(GetRepliesRequest(
-                    peer=event.chat_id,
-                    msg_id=event.id,
-                    offset_id=0,
-                    offset_date=None,
-                    offset_rate=0,
-                    limit=1
-                ))
+    if not komen or not komen.trigger or not komen.reply:
+        return
 
-                await bot.send_message(
-                    entity=event.chat_id,
-                    message=original,
-                    comment_to=event.id
-                )
-                break
-            except Exception as e:
-                await event.reply(f"[ERROR] Gagal komen: {e}")
+    if komen.trigger.lower() not in (event.raw_text or "").lower():
+        return
+
+    try:
+        discussion = await bot(GetDiscussionMessageRequest(
+            peer=event.chat_id,
+            msg_id=event.id
+        ))
+
+        if not discussion.messages:
+            return
+
+        reply_msg = discussion.messages[0]
+        reply_chat_id = reply_msg.to_id.channel_id  # 🔧 FIXED LINE
+
+        await bot.send_message(
+            entity=reply_chat_id,
+            message=komen.reply,
+            reply_to=reply_msg.id
+        )
+    except Exception as e:
+        await bot.send_message("me", f"[ERROR] Auto-komen gagal:\n`{e}`")
