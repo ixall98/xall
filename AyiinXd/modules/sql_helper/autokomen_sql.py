@@ -16,8 +16,11 @@ class AutoKomen(BASE):
 
 BASE.metadata.create_all(bind=SESSION.get_bind())
 
-def get_all_autokomen():
-    return SESSION.query(AutoKomen).all()
+def get_all_komen():
+    try:
+        return SESSION.query(Komen).all()
+    except BaseException:
+        return None
     
 def add_komen(channel_id, trigger, _):
     entry = SESSION.query(AutoKomen).filter_by(channel_id=channel_id, trigger=trigger).first()
