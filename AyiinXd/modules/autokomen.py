@@ -49,9 +49,10 @@ async def _(event):
 
     for row in data:
        row.reply_id = reply_msg.id
-       row.reply_chat = str(reply_chat_id)
+       row.reply_chat = str(reply_msg.chat_id)
+    db.SESSION.commit()
 
-     await event.edit(f"💬 Komen berhasil diset untuk trigger `{trigger}`.")
+    await event.edit(f"💬 Komen berhasil diset untuk trigger `{trigger}`.")
 
 # 🗑️ HAPUS KOMEN
 @ayiin_cmd(pattern="delkomen(?: |$)(.*)")
