@@ -2,9 +2,10 @@ from AyiinXd import CMD_HANDLER as cmd, CMD_HELP, bot
 from AyiinXd.ayiin import ayiin_cmd
 from telethon import events
 from .sql_helper import autokomen_sql as db
-from telethon.tl.functions.messages import GetRepliesRequest
+from telethon.tl.functions.messages import GetRepliesRequest, SendMessageRequest
 from telethon.tl.types import Message
-from telethon.tl.types import PeerChannel, PeerUser, PeerChat
+from telethon.tl.types import InputPeerChannel, PeerChannel, PeerUser, PeerChat
+from telethon.tl.functions.channels import GetFullChannelRequest
 
 # ✅ SET CHANNEL DENGAN TRIGGER
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
@@ -37,23 +38,44 @@ async def _(event):
     if not data:
         return await event.edit("Trigger tidak ditemukan di channel manapun.")
 
-    reply_to = reply_msg.to_id
-    if isinstance(reply_to, PeerChannel):
-      reply_chat_id = reply_to.channel_id
-    elif isinstance(reply_to, PeerUser):
-      reply_chat_id = reply_to.user_id
-    elif isinstance(reply_to, PeerChat):
-      reply_chat_id = reply_to.chat_id
-    else:
-      return await event.edit("Gagal ambil ID chat dari pesan yang dibalas.")
+    reply_chat_id = reply_msg.chat_id
 
     for row in data:
-       row.reply_id = reply_msg.id
-       row.reply_chat = str(reply_msg.chat_id)
+        row.reply_id = reply_msg.id
+        row.reply_chat = str(reply_chat_id)
     db.SESSION.commit()
 
-    await event.edit(f"💬 Komen berhasil diset untuk trigger `{trigger}`.")
+@bot.on(events.NewMessage(incoming=True))
+async def autokomen_trigger(event):
+    if not event.is_channel or event.chat is None:
+        return
 
+    text = event.raw_text.lower()
+    if not text:
+        return
+
+    # Ambil semua trigger dari DB
+    all_data = db.get_all_autokomen()
+
+    for row in all_data:
+        if row.trigger.lower() in text and str(event.chat_id) in row.channels:
+            try:
+                channel = await client(GetFullChannelRequest(event.chat_id))
+                input_peer = InputPeerChannel(
+                    channel.channel.id,
+                    channel.channel.access_hash
+                )
+
+                await client(SendMessageRequest(
+                    peer=input_peer,
+                    message=row.komen,
+                    reply_to_msg_id=int(row.reply_id)
+                ))
+            except Exception as e:
+                await event.reply(f"[ERROR] Gagal komen: {e}")
+                
+    await event.edit(f"💬 Komen berhasil diset untuk trigger `{trigger}`.")
+    
 # 🗑️ HAPUS KOMEN
 @ayiin_cmd(pattern="delkomen(?: |$)(.*)")
 async def _(event):
