@@ -4,6 +4,7 @@ from telethon import events
 from .sql_helper import autokomen_sql as db
 from telethon.tl.functions.messages import GetRepliesRequest
 from telethon.tl.types import Message
+from telethon.tl.types import PeerChannel, PeerUser, PeerChat
 
 # ✅ SET CHANNEL DENGAN TRIGGER
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
@@ -36,12 +37,21 @@ async def _(event):
     if not data:
         return await event.edit("Trigger tidak ditemukan di channel manapun.")
 
-    for row in data:
-        row.reply_id = reply_msg.id
-        row.reply_chat = str(reply_msg.chat_id)
-    db.SESSION.commit()
+    reply_to = reply_msg.to_id
+    if isinstance(reply_to, PeerChannel):
+      reply_chat_id = reply_to.channel_id
+    elif isinstance(reply_to, PeerUser):
+      reply_chat_id = reply_to.user_id
+    elif isinstance(reply_to, PeerChat):
+      reply_chat_id = reply_to.chat_id
+    else:
+      return await event.edit("Gagal ambil ID chat dari pesan yang dibalas.")
 
-    await event.edit(f"💬 Komen berhasil diset untuk trigger `{trigger}`.")
+    for row in data:
+       row.reply_id = reply_msg.id
+       row.reply_chat = str(reply_chat_id)
+
+     await event.edit(f"💬 Komen berhasil diset untuk trigger `{trigger}`.")
 
 # 🗑️ HAPUS KOMEN
 @ayiin_cmd(pattern="delkomen(?: |$)(.*)")
