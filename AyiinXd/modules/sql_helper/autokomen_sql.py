@@ -8,18 +8,18 @@ class AutoKomen(BASE):
     reply_id = Column(Integer, nullable=True)
     reply_chat = Column(String(100), nullable=True)
 
-    def __init__(self, channel_id, trigger, reply_id=None, reply_chat=None):
+
+    def __init__(self, channel_id, reply, trigger):
         self.channel_id = channel_id
+        self.reply = reply
         self.trigger = trigger
-        self.reply_id = reply_id
-        self.reply_chat = reply_chat
 
 BASE.metadata.create_all(bind=SESSION.get_bind())
 
-def get_all_komen():
+def get_all_autokomen():
     try:
         return SESSION.query(Komen).all()
-    except BaseException:
+    except Exception:
         return None
     
 def add_komen(channel_id, trigger, _):
