@@ -11,18 +11,29 @@ from telethon.tl.types import Message
 
 # ✅ SET CHANNEL DENGAN TRIGGER
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
+@ayiin_cmd(pattern="setch(?: |$)(.*)")
 async def _(event):
     args = event.pattern_match.group(1).split()
     if len(args) < 2:
         return await event.edit("Contoh: `.setch trigger @ch1 @ch2`")
+    
     trigger = args[0].lower()
     channels = args[1:]
+    added = []
     for ch in channels:
         if not ch.startswith("@"):
             ch = f"@{ch}"
-        db.add_komen(ch, trigger, "")
-    await event.edit(f"✅ Trigger `{trigger}` disimpan untuk channel: {', '.join(channels)}")
-
+        try:
+            db.add_komen(ch, trigger, "")
+            added.append(ch)
+        except Exception as e:
+            await event.reply(f"❌ Gagal simpan channel {ch}:\n`{e}`")
+    
+    if added:
+        await event.edit(f"✅ Trigger `{trigger}` disimpan untuk channel: {', '.join(added)}")
+    else:
+        await event.edit("⚠️ Tidak ada channel yang berhasil disimpan.")
+        
 # 📝 SET KOMEN MULTILINE/MEDIA/HYPERLINK
 @ayiin_cmd(pattern="setkomen(?: |$)(.*)")
 async def _(event):
