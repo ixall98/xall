@@ -76,7 +76,7 @@ async def _(event):
         db.add_filter(ch, trigger)
         clean_channels.append(ch)
 
-    db.set_last(str(event.sender_id), clean_channels)  # << SIMPAN SEMUA CHANNEL SEKALIGUS
+    db.set_last(str(event.sender_id), channels)
 
     await event.edit(f"✅ Trigger `{trigger}` disimpan di channel: `{', '.join(clean_channels)}`")
 
