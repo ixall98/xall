@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String
+from sqlalchemy import Column, String, Integer, Text
 from . import BASE, SESSION
 import threading
 
@@ -10,12 +10,16 @@ class AutoKomen(BASE):
     __tablename__ = "auto_komen"
     channel_id = Column(String(100), primary_key=True)
     trigger = Column(String(100), primary_key=True)
-    reply = Column(String)
+    reply = Column(Text)
+    msg_id = Column(Integer)        # NEW
+    msg_chat = Column(Integer)      # NEW
 
-    def __init__(self, channel_id, trigger, reply):
+    def __init__(self, channel_id, trigger, reply, msg_id=None, msg_chat=None):
         self.channel_id = channel_id
         self.trigger = trigger
         self.reply = reply
+        self.msg_id = msg_id
+        self.msg_chat = msg_chat
 
 
 # ➕ Tambah filter baru ke channel
@@ -27,16 +31,17 @@ def add_filter(channel_id, trigger):
 
 
 # 📝 Set teks balasan (komen) dari trigger
-def set_reply(channel_id, trigger, reply):
+def set_reply(channel_id, trigger, reply=None, msg_id=None, msg_chat=None):
     with INSERTION_LOCK:
         komen = SESSION.query(AutoKomen).filter_by(channel_id=channel_id, trigger=trigger).first()
-        if komen:
-            komen.reply = reply
-        else:
-            komen = AutoKomen(channel_id, trigger, reply)
+        if not komen:
+            komen = AutoKomen(channel_id, trigger, reply, msg_id, msg_chat)
             SESSION.add(komen)
+        else:
+            komen.reply = reply
+            komen.msg_id = msg_id
+            komen.msg_chat = msg_chat
         SESSION.commit()
-
 
 # 🔍 Ambil semua trigger dari satu channel
 def get_triggers(channel_id):
