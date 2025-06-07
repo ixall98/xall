@@ -11,7 +11,6 @@ from telethon.tl.types import Message
 
 # ✅ SET CHANNEL DENGAN TRIGGER
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
-@ayiin_cmd(pattern="setch(?: |$)(.*)")
 async def _(event):
     args = event.pattern_match.group(1).split()
     if len(args) < 2:
