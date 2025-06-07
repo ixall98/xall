@@ -1,6 +1,7 @@
 from sqlalchemy import Column, String
 from . import BASE, SESSION
 import threading
+import json
 
 INSERTION_LOCK = threading.RLock()
 
@@ -22,7 +23,7 @@ class AutoKomen(BASE):
 class LastAutoKomen(BASE):
     __tablename__ = "last_auto_komen"
     user_id = Column(String(14), primary_key=True)
-    channel_id = Column(String(100))
+    channel_id = Column(String)  # bisa simpan JSON list string
 
 def add_filter(channel_id, trigger):
     with INSERTION_LOCK:
@@ -71,15 +72,23 @@ def set_last(user_id, channel_id):
     with INSERTION_LOCK:
         last = SESSION.query(LastAutoKomen).get(str(user_id))
         if not last:
-            last = LastAutoKomen(user_id=str(user_id), channel_id=channel_id)
+            last = LastAutoKomen(
+                user_id=str(user_id),
+                channel_id=json.dumps([channel_id])  # simpan list
+            )
             SESSION.add(last)
         else:
-            last.channel_id = channel_id
+            existing = json.loads(last.channel_id or "[]")
+            if channel_id not in existing:
+                existing.append(channel_id)
+                last.channel_id = json.dumps(existing)
         SESSION.commit()
 
 def get_last(user_id):
     last = SESSION.query(LastAutoKomen).get(str(user_id))
-    return last.channel_id if last else None
+    if last:
+        return json.loads(last.channel_id)  # balikin list
+    return []
 
     # Hapus komen berdasarkan channel & trigger
 def delete_reply(channel_id, trigger):
