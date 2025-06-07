@@ -1,7 +1,6 @@
 from sqlalchemy import Column, String
 from . import BASE, SESSION
 import threading
-import json
 
 INSERTION_LOCK = threading.RLock()
 
@@ -23,7 +22,7 @@ class AutoKomen(BASE):
 class LastAutoKomen(BASE):
     __tablename__ = "last_auto_komen"
     user_id = Column(String(14), primary_key=True)
-    channel_id = Column(String)  # bisa simpan JSON list string
+    channel_ids = Column(String)  # simpan sebagai string, nanti kita parse jadi list
 
 def add_filter(channel_id, trigger):
     with INSERTION_LOCK:
@@ -68,26 +67,20 @@ def delete_channel(channel_id):
 def get_all_komen():
     return SESSION.query(AutoKomen).all()
 
-def set_last(user_id, channel_id):
+def set_last(user_id, channels: list):
     with INSERTION_LOCK:
         last = SESSION.query(LastAutoKomen).get(str(user_id))
         if not last:
-            last = LastAutoKomen(
-                user_id=str(user_id),
-                channel_id=json.dumps([channel_id])  # simpan list
-            )
+            last = LastAutoKomen(user_id=str(user_id), channel_ids=",".join(channels))
             SESSION.add(last)
         else:
-            existing = json.loads(last.channel_id or "[]")
-            if channel_id not in existing:
-                existing.append(channel_id)
-                last.channel_id = json.dumps(existing)
+            last.channel_ids = ",".join(channels)
         SESSION.commit()
 
 def get_last(user_id):
     last = SESSION.query(LastAutoKomen).get(str(user_id))
-    if last:
-        return json.loads(last.channel_id)  # balikin list
+    if last and last.channel_ids:
+        return [ch.strip() for ch in last.channel_ids.split(",") if ch.strip()]
     return []
 
     # Hapus komen berdasarkan channel & trigger
