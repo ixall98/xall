@@ -10,20 +10,20 @@ LAST_CHANNEL = {}  # Simpan channel terakhir per userbot session
 
 # 🔁 Auto-komen handler
 @bot.on(events.NewMessage(incoming=True))
-async def auto_komen_handler(event):
+async def komen_comment_section(event):
     if not isinstance(event.message, Message):
         return
     if not event.is_channel or event.chat.username is None:
         return
 
     channel_id = f"@{event.chat.username}"
-    komen_list = db.get_triggers(channel_id)
-    if not komen_list:
+    triggers = db.get_triggers(channel_id)
+    if not triggers:
         return
 
-    msg_text = (event.raw_text or "").lower()
-    for komen in komen_list:
-        if komen.trigger.lower() in msg_text and komen.reply:
+    text = (event.raw_text or "").lower()
+    for komen in triggers:
+        if komen.trigger.lower() in text:
             try:
                 discussion = await bot(GetDiscussionMessageRequest(
                     peer=event.chat_id,
@@ -34,14 +34,21 @@ async def auto_komen_handler(event):
                 reply_msg = discussion.messages[0]
                 reply_chat_id = reply_msg.to_id.channel_id
 
-                await bot.send_message(
-                    entity=reply_chat_id,
-                    message=komen.reply,
-                    reply_to=reply_msg.id
-                )
+                if komen.msg_id and komen.msg_chat:
+                    await bot.forward_messages(
+                        entity=reply_chat_id,
+                        messages=int(komen.msg_id),
+                        from_peer=int(komen.msg_chat),
+                        reply_to=reply_msg.id
+                    )
+                elif komen.reply:
+                    await bot.send_message(
+                        entity=reply_chat_id,
+                        message=komen.reply,
+                        reply_to=reply_msg.id
+                    )
             except Exception as e:
-                await bot.send_message("me", f"[ERROR] Auto-komen gagal:\n`{e}`")
-            break
+                await bot.send_message("me", f"[ERROR Auto-Komen]\n`{e}`")
 
 
 # ➕ SET CHANNEL
@@ -68,22 +75,25 @@ async def _(event):
 
 
 # 💬 SET KOMEN (multiline & hyperlink support)
-@ayiin_cmd(pattern="setkomen$")
+@ayiin_cmd(pattern="setkomen(?: |$)(.*)")
 async def _(event):
-    if not event.is_reply:
-        return await event.edit("Balas ke pesan yang mau dijadiin komen.")
+    trigger = event.pattern_match.group(1).strip()
+    if not trigger:
+        return await event.edit("Contoh: `.setkomen promo` (harus reply ke pesan juga)")
 
-    if event.sender_id not in LAST_CHANNEL:
-        return await event.edit("Set dulu dengan `.setch <trigger> <@channel>`")
+    if not event.reply_to_msg_id:
+        return await event.edit("❌ Harus reply ke pesan yang mau dijadiin komen!")
 
-    reply = await event.get_reply_message()
-    komen_text = reply.raw_text or ""
-    if not komen_text:
-        return await event.edit("Teks tidak ditemukan dalam balasan.")
+    reply_msg = await event.get_reply_message()
+    if not reply_msg:
+        return await event.edit("❌ Gagal ambil pesan yang direply.")
 
-    ch, trig = LAST_CHANNEL[event.sender_id]
-    db.set_reply(ch, trig, komen_text)
-    await event.edit(f"💬 Komen disimpan untuk `{trig}` di `{ch}`.")
+    channel_id = db.get_last()
+    if not channel_id:
+        return await event.edit("Belum set channel. Pakai `.setch <trigger> <@channel>` dulu.")
+
+    db.set_reply(channel_id, trigger, reply_msg.id, str(reply_msg.chat_id))  # simpan msg_id & chat_id
+    await event.edit(f"✅ Disimpan:\n📢 Channel: `{channel_id}`\n🔑 Trigger: `{trigger}`\n💬 Komen: [pesan yang direply]")
 
 
 # 🗑️ HAPUS TRIGGER
