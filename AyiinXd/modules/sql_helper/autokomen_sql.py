@@ -8,12 +8,16 @@ class AutoKomen(BASE):
     __tablename__ = "auto_komen"
     channel_id = Column(String(100), primary_key=True)
     trigger = Column(String(100), primary_key=True)
-    reply = Column(String)
+    reply = Column(String, default="")
+    msg_id = Column(String(50), default=None)
+    msg_chat = Column(String(50), default=None)
 
-    def __init__(self, channel_id, trigger, reply=""):
+    def __init__(self, channel_id, trigger, reply="", msg_id=None, msg_chat=None):
         self.channel_id = channel_id
         self.trigger = trigger
         self.reply = reply
+        self.msg_id = msg_id
+        self.msg_chat = msg_chat
 
 class LastAutoKomen(BASE):
     __tablename__ = "last_auto_komen"
@@ -26,16 +30,24 @@ def add_filter(channel_id, trigger):
         SESSION.add(komen)
         SESSION.commit()
 
-def set_reply(channel_id, trigger, reply):
+def set_reply(channel_id, trigger, msg_id=None, msg_chat=None, reply=None):
     with INSERTION_LOCK:
         komen = SESSION.query(AutoKomen).filter_by(channel_id=channel_id, trigger=trigger).first()
         if komen:
-            komen.reply = reply
+            komen.reply = reply or ""
+            komen.msg_id = msg_id
+            komen.msg_chat = msg_chat
         else:
-            komen = AutoKomen(channel_id, trigger, reply)
+            komen = AutoKomen(
+                channel_id=channel_id,
+                trigger=trigger,
+                reply=reply or "",
+                msg_id=msg_id,
+                msg_chat=msg_chat
+            )
             SESSION.add(komen)
         SESSION.commit()
-
+        
 def get_triggers(channel_id):
     return SESSION.query(AutoKomen).filter_by(channel_id=channel_id).all()
 
