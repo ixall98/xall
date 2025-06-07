@@ -15,73 +15,75 @@ async def komen_comment_section(event):
         return
 
     channel_id = f"@{event.chat.username}"
-    komen = db.get_komen(channel_id)
+    text = (event.raw_text or "").lower()
+    triggers = db.get_triggers(channel_id)
 
-    if not komen or not komen.trigger or not komen.reply:
+    if not triggers:
         return
 
-    if komen.trigger.lower() not in (event.raw_text or "").lower():
-        return
+    for trig in triggers:
+        if trig.lower() in text:
+            reply_data = db.get_komen(trig)
+            if not reply_data:
+                continue
+            try:
+                discussion = await bot(GetDiscussionMessageRequest(
+                    peer=event.chat_id,
+                    msg_id=event.id
+                ))
+                if not discussion.messages:
+                    continue
+                reply_msg = discussion.messages[0]
+                reply_chat_id = reply_msg.to_id.channel_id
 
-    try:
-        discussion = await bot(GetDiscussionMessageRequest(
-            peer=event.chat_id,
-            msg_id=event.id
-        ))
-
-        if not discussion.messages:
-            return
-
-        reply_msg = discussion.messages[0]
-        reply_chat_id = reply_msg.to_id.channel_id  # 🔧 FIXED LINE
-
-        await bot.send_message(
-            entity=reply_chat_id,
-            message=komen.reply,
-            reply_to=reply_msg.id
-        )
-    except Exception as e:
-        await bot.send_message("me", f"[ERROR] Auto-komen gagal:\n`{e}`")
-
+                await bot.send_message(
+                    entity=reply_chat_id,
+                    message=reply_data.get("text"),
+                    entities=reply_data.get("entities"),
+                    file=reply_data.get("media"),
+                    reply_to=reply_msg.id
+                )
+            except Exception as e:
+                await bot.send_message("me", f"[ERROR] Auto-komen gagal:\n`{e}`")
 
 # ➕ SET CHANNEL
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
 async def _(event):
-    channel_id = event.pattern_match.group(1)
-    if not channel_id:
-        return await event.edit("Contoh: `.setch @namachannel`")
-    if not channel_id.startswith("@"):
-        channel_id = "@" + channel_id
-    if db.get_komen(channel_id):
-        return await event.edit("Channel ini udah ada.")
-    db.add_komen(channel_id, "", "")
-    db.set_last(channel_id)
-    await event.edit(f"✅ Channel `{channel_id}` siap buat auto komen.")
+    args = event.pattern_match.group(1)
+    if not args or " " not in args:
+        return await event.edit("Contoh: `.setch promo @channel1 @channel2`")
+
+    parts = args.split()
+    trigger = parts[0]
+    channels = parts[1:]
+
+    for ch in channels:
+        if not ch.startswith("@"):
+            continue
+        db.add_filter(ch, trigger)  # Tambah relasi trigger ke channel
+
+    db.set_last(trigger)
+    await event.edit(f"✅ Trigger `{trigger}` disimpan untuk: {', '.join(channels)}")
 
 
 # 📝 SET KOMEN + TRIGGER
-@ayiin_cmd(pattern="setkomen(?: |$)(.*)")
+@ayiin_cmd(pattern="setkomen$")
 async def _(event):
-    args = event.pattern_match.group(1)
-    if not args or " " not in args:
-        return await event.edit("Contoh: `.setkomen Halo semua promo`")
+    reply = await event.get_reply_message()
+    if not reply:
+        return await event.edit("Reply ke pesan yang mau dijadikan komen.")
 
-    *komen_parts, trigger = args.split()
-    teks_komen = " ".join(komen_parts)
+    trigger = db.get_last()
+    if not trigger:
+        return await event.edit("Belum set trigger. Pakai `.setch <trigger> <@channel>` dulu.")
 
-    channel_id = db.get_last()
-    if not channel_id:
-        return await event.edit("Belum set channel. Pakai `.setch @namachannel` dulu.")
-
-    komen = db.get_komen(channel_id)
-    if not komen:
-        return await event.edit("Channel belum terdaftar.")
-
-    komen.reply = teks_komen
-    komen.trigger = trigger
-    db.SESSION.commit()
-    await event.edit(f"💬 Auto komen: `{teks_komen}`\n🔑 Trigger: `{trigger}`")
-
+    msg_data = {
+        "text": reply.text or "",
+        "entities": reply.entities,
+        "media": reply.media
+    }
+    db.save_komen(trigger, msg_data)
+    await event.edit(f"💬 Komen disimpan untuk trigger `{trigger}`")
 
 # 🗑️ HAPUS CHANNEL
 @ayiin_cmd(pattern="delch(?: |$)(.*)")
