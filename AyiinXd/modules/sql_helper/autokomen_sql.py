@@ -1,54 +1,67 @@
-from sqlalchemy import Column, String, Integer, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, String
 from . import BASE, SESSION
+import threading
 
+# 🔒 Lock biar thread-safe saat insert/update
+INSERTION_LOCK = threading.RLock()
+
+# 🗂️ Tabel utama untuk auto-komen
 class AutoKomen(BASE):
-    __tablename__ = "autokomen"
-    id = Column(Integer, primary_key=True)
-    trigger = Column(String, nullable=False)
-    reply = Column(String, nullable=True)
-    type = Column(String, default="text")  # text or media
-    channels = relationship("KomenChannel", back_populates="komen", cascade="all, delete-orphan")
+    __tablename__ = "auto_komen"
+    channel_id = Column(String(100), primary_key=True)
+    trigger = Column(String(100), primary_key=True)
+    reply = Column(String)
 
-class KomenChannel(BASE):
-    __tablename__ = "komen_channel"
-    id = Column(Integer, primary_key=True)
-    trigger_id = Column(Integer, ForeignKey("autokomen.id"))
-    channel_id = Column(String, nullable=False)
-    komen = relationship("AutoKomen", back_populates="channels")
+    def __init__(self, channel_id, trigger, reply):
+        self.channel_id = channel_id
+        self.trigger = trigger
+        self.reply = reply
 
+
+# ➕ Tambah filter baru ke channel
 def add_filter(channel_id, trigger):
     with INSERTION_LOCK:
-        filter = AutoKomen(channel_id=channel_id, trigger=trigger, reply="")
-        SESSION.add(filter)
+        komen = AutoKomen(channel_id, trigger, "")
+        SESSION.add(komen)
         SESSION.commit()
 
-def set_komen_reply(trigger, reply, tipe="text"):
-    komen = SESSION.query(AutoKomen).filter_by(trigger=trigger).first()
-    if komen:
-        komen.reply = reply
-        komen.type = tipe
+
+# 📝 Set teks balasan (komen) dari trigger
+def set_reply(channel_id, trigger, reply):
+    with INSERTION_LOCK:
+        komen = SESSION.query(AutoKomen).filter_by(channel_id=channel_id, trigger=trigger).first()
+        if komen:
+            komen.reply = reply
+        else:
+            komen = AutoKomen(channel_id, trigger, reply)
+            SESSION.add(komen)
         SESSION.commit()
 
-def add_channel_to_trigger(trigger, channel_id):
-    komen = SESSION.query(AutoKomen).filter_by(trigger=trigger).first()
-    if komen and not any(c.channel_id == channel_id for c in komen.channels):
-        komen.channels.append(KomenChannel(channel_id=channel_id))
+
+# 🔍 Ambil semua trigger dari satu channel
+def get_triggers(channel_id):
+    return SESSION.query(AutoKomen).filter_by(channel_id=channel_id).all()
+
+
+# 🔍 Cek satu trigger spesifik
+def get_komen(channel_id, trigger):
+    return SESSION.query(AutoKomen).filter_by(channel_id=channel_id, trigger=trigger).first()
+
+
+# ❌ Hapus trigger dari satu channel
+def delete_trigger(channel_id, trigger):
+    with INSERTION_LOCK:
+        SESSION.query(AutoKomen).filter_by(channel_id=channel_id, trigger=trigger).delete()
         SESSION.commit()
 
-def get_komen_by_channel(channel_id):
-    all_komen = SESSION.query(AutoKomen).all()
-    for komen in all_komen:
-        for ch in komen.channels:
-            if ch.channel_id == channel_id:
-                return komen
-    return None
 
+# ❌ Hapus semua trigger dari satu channel
+def delete_channel(channel_id):
+    with INSERTION_LOCK:
+        SESSION.query(AutoKomen).filter_by(channel_id=channel_id).delete()
+        SESSION.commit()
+
+
+# 📋 Ambil semua data auto komen
 def get_all_komen():
     return SESSION.query(AutoKomen).all()
-
-def delete_komen(trigger):
-    komen = SESSION.query(AutoKomen).filter_by(trigger=trigger).first()
-    if komen:
-        SESSION.delete(komen)
-        SESSION.commit()
