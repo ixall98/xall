@@ -69,7 +69,7 @@ async def _(event):
         if not ch.startswith("@"):
             ch = "@" + ch
         db.add_filter(ch, trigger)
-        db.set_last(str(event.sender_id), channel_id)
+        db.set_last(str(event.sender_id), ch)
 
     await event.edit(f"✅ Trigger `{trigger}` disimpan di channel: `{', '.join(channels)}`")
 
