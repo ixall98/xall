@@ -88,14 +88,27 @@ async def _(event):
     if not reply_msg:
         return await event.edit("❌ Gagal ambil pesan yang direply.")
 
-    channel_id = db.get_last()
-    if not channel_id:
-        return await event.edit("Belum set channel. Pakai `.setch <trigger> <@channel>` dulu.")
-
-    db.set_reply(channel_id, trigger, reply_msg.id, str(reply_msg.chat_id))  # simpan msg_id & chat_id
+    # Ambil channel_id terakhir user
     channel_id = db.get_last(str(event.sender_id))
-    await event.edit(f"✅ Disimpan:\n📢 Channel: `{channel_id}`\n🔑 Trigger: `{trigger}`\n💬 Komen: [pesan yang direply]")
+    if not channel_id:
+        return await event.edit("❌ Belum set channel.\nGunakan: `.setch <trigger> <@channel>`")
 
+    # Simpan reply ke database
+    db.set_reply(channel_id, trigger, reply_msg.id, str(reply_msg.chat_id))
+
+    # Buat link ke pesan reply
+    try:
+        link_preview = f"https://t.me/c/{str(reply_msg.chat_id)[4:]}/{reply_msg.id}"
+    except Exception:
+        link_preview = "pesan"
+
+    await event.edit(
+        f"✅ **AutoKomen Disimpan!**\n"
+        f"📢 **Channel:** `{channel_id}`\n"
+        f"🔑 **Trigger:** `{trigger}`\n"
+        f"💬 **Komen:** [klik di sini]({link_preview})",
+        link_preview=False
+    )
 
 # 🗑️ HAPUS TRIGGER
 @ayiin_cmd(pattern="delkomen(?: |$)(.*)")
