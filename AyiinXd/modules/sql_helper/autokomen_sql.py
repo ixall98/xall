@@ -17,11 +17,11 @@ class KomenChannel(BASE):
     channel_id = Column(String, nullable=False)
     komen = relationship("AutoKomen", back_populates="channels")
 
-def add_komen(trigger):
-    komen = AutoKomen(trigger=trigger)
-    SESSION.add(komen)
-    SESSION.commit()
-    return komen
+def add_filter(channel_id, trigger):
+    with INSERTION_LOCK:
+        filter = AutoKomen(channel_id=channel_id, trigger=trigger, reply="")
+        SESSION.add(filter)
+        SESSION.commit()
 
 def set_komen_reply(trigger, reply, tipe="text"):
     komen = SESSION.query(AutoKomen).filter_by(trigger=trigger).first()
