@@ -69,21 +69,23 @@ async def _(event):
     if not channels:
         return await event.edit("Harap sebutkan minimal 1 @channel.")
 
+    clean_channels = []
     for ch in channels:
         if not ch.startswith("@"):
             ch = "@" + ch
         db.add_filter(ch, trigger)
-        db.set_last(str(event.sender_id), ch)
+        clean_channels.append(ch)
 
-    await event.edit(f"✅ Trigger `{trigger}` disimpan di channel: `{', '.join(channels)}`")
+    db.set_last(str(event.sender_id), clean_channels)  # << SIMPAN SEMUA CHANNEL SEKALIGUS
 
+    await event.edit(f"✅ Trigger `{trigger}` disimpan di channel: `{', '.join(clean_channels)}`")
 
 # 💬 SET KOMEN (multiline & hyperlink support)
 @ayiin_cmd(pattern="setkomen(?: |$)(.*)")
 async def _(event):
     trigger = event.pattern_match.group(1).strip()
     if not trigger:
-        return await event.edit("Contoh: `.setkomen promo` (harus reply ke pesan juga)")
+        return await event.edit("Contoh: `.setkomen promo` (harus reply ke pesan juga)`")
 
     if not event.reply_to_msg_id:
         return await event.edit("❌ Harus reply ke pesan yang mau dijadiin komen!")
@@ -92,26 +94,25 @@ async def _(event):
     if not reply_msg:
         return await event.edit("❌ Gagal ambil pesan yang direply.")
 
-    # Ambil channel_id terakhir user
-    channel_id = db.get_last(str(event.sender_id))
-    if not channel_id:
+    # Ambil semua channel_id dari user
+    channel_ids = db.get_last(str(event.sender_id))
+    if not channel_ids:
         return await event.edit("❌ Belum set channel.\nGunakan: `.setch <trigger> <@channel>`")
 
-    # Simpan reply ke database
-    db.set_reply(channel_id, trigger, msg_id=reply_msg.id, msg_chat=str(reply_msg.chat_id))
-    # Buat link ke pesan reply
+    # Simpan komen ke semua channel
+    for ch in channel_ids:
+        db.set_reply(ch, trigger, msg_id=reply_msg.id, msg_chat=str(reply_msg.chat_id))
+
+    # Buat link preview
     try:
         link_preview = f"https://t.me/c/{str(reply_msg.chat_id)[4:]}/{reply_msg.id}"
     except Exception:
         link_preview = "pesan"
 
     await event.edit(
-        f"✅ **AutoKomen Disimpan!**\n"
-        f"📢 **Channel:** `{channel_id}`\n"
-        f"🔑 **Trigger:** `{trigger}`\n"
-        f"💬 **Komen:** [klik di sini]({link_preview})",
+        f"✅ Disimpan ke `{len(channel_ids)}` channel:\n🔑 Trigger: `{trigger}`\n💬 Komen: [link]({link_preview})",
         link_preview=False
-    )
+        )
 
 # 🗑️ HAPUS TRIGGER
 @ayiin_cmd(pattern="delkomen(?: |$)(.*)")
