@@ -93,6 +93,7 @@ async def _(event):
         return await event.edit("Belum set channel. Pakai `.setch <trigger> <@channel>` dulu.")
 
     db.set_reply(channel_id, trigger, reply_msg.id, str(reply_msg.chat_id))  # simpan msg_id & chat_id
+    channel_id = db.get_last(str(event.sender_id))
     await event.edit(f"✅ Disimpan:\n📢 Channel: `{channel_id}`\n🔑 Trigger: `{trigger}`\n💬 Komen: [pesan yang direply]")
 
 
