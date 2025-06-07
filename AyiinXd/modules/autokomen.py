@@ -15,44 +15,61 @@ async def komen_comment_section(event):
     if not event.is_channel or event.chat.username is None:
         return
 
-    channel_id = f"@{event.chat.username}"
+    channel_id = f"@{event.chat.username.lower()}"
+    text = (event.raw_text or "").lower()
+
+    # Ambil semua trigger dari database
     triggers = db.get_triggers(channel_id)
     if not triggers:
         return
 
-    text = (event.raw_text or "").lower()
     for komen in triggers:
-        if komen.trigger.lower() in text:
-            try:
-                discussion = await bot(GetDiscussionMessageRequest(
-                    peer=event.chat_id,
-                    msg_id=event.id
-                ))
-                if not discussion.messages:
-                    return
-                reply_msg = discussion.messages[0]
-                reply_chat_id = reply_msg.to_id.channel_id
+        trigger = komen.trigger.lower()
+        if trigger not in text:
+            continue
 
-                if komen.msg_id and komen.msg_chat:
-                    try:
-                        msg = await bot.get_messages(int(komen.msg_chat), ids=int(komen.msg_id))
-                        await bot.send_message(
-                            entity=reply_chat_id,
-                            message=msg.text or "💬 (Kosong atau bukan teks)",
-                            reply_to=reply_msg.id,
-                            parse_mode="Markdown"
-                        )
-                    except Exception as e:
-                        await bot.send_message("me", f"[ERROR Auto-Komen Markdown]\n{e}")
-                elif komen.reply:
+        try:
+            # Hindari get_discussion kalau nggak perlu
+            discussion = getattr(event.message, 'reply_markup', None)
+            discussion_msg = await bot(GetDiscussionMessageRequest(
+                peer=event.chat_id,
+                msg_id=event.id
+            ))
+
+            if not discussion_msg.messages:
+                continue
+
+            reply_msg = discussion_msg.messages[0]
+            reply_chat_id = reply_msg.to_id.channel_id
+
+            # Kasih delay kecil biar ga spam Telegram
+            await asyncio.sleep(0.5)
+
+            # Kirim dari msg_id jika ada (berarti reply ke media atau teks simpanan)
+            if komen.msg_id and komen.msg_chat:
+                try:
+                    msg = await bot.get_messages(int(komen.msg_chat), ids=int(komen.msg_id))
                     await bot.send_message(
                         entity=reply_chat_id,
-                        message=komen.reply,
-                        reply_to=reply_msg.id,
-                        parse_mode="Markdown"
+                        message=msg,
+                        reply_to=reply_msg.id
                     )
-            except Exception as e:
-                await bot.send_message("me", f"[ERROR Auto-Komen]\n`{e}`")
+                except Exception as e:
+                    await bot.send_message("me", f"[❌ Error Auto-Komen Media]\n{e}")
+
+            elif komen.reply:
+                await bot.send_message(
+                    entity=reply_chat_id,
+                    message=komen.reply,
+                    reply_to=reply_msg.id,
+                    parse_mode="Markdown"
+                )
+
+            # Kalau udah match 1 trigger, keluar dari loop supaya ga dobel komen
+            break
+
+        except Exception as e:
+            await bot.send_message("me", f"[❌ Error Auto-Komen]\n`{e}`")
 
 
 # ➕ SET CHANNEL
