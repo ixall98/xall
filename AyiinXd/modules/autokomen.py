@@ -8,7 +8,6 @@ from .sql_helper import autokomen_sql as db
 LAST_CHANNEL = {}  # Simpan channel terakhir per userbot session
 
 
-# 🔁 Auto-komen handler
 @bot.on(events.NewMessage(incoming=True))
 async def komen_comment_section(event):
     if not isinstance(event.message, Message):
@@ -35,17 +34,22 @@ async def komen_comment_section(event):
                 reply_chat_id = reply_msg.to_id.channel_id
 
                 if komen.msg_id and komen.msg_chat:
-                    await bot.forward_messages(
-                        entity=reply_chat_id,
-                        messages=int(komen.msg_id),
-                        from_peer=int(komen.msg_chat),
-                        reply_to=reply_msg.id
-                    )
+                    try:
+                        msg = await bot.get_messages(int(komen.msg_chat), ids=int(komen.msg_id))
+                        await bot.send_message(
+                            entity=reply_chat_id,
+                            message=msg.text or "💬 (Kosong atau bukan teks)",
+                            reply_to=reply_msg.id,
+                            parse_mode="Markdown"
+                        )
+                    except Exception as e:
+                        await bot.send_message("me", f"[ERROR Auto-Komen Markdown]\n{e}")
                 elif komen.reply:
                     await bot.send_message(
                         entity=reply_chat_id,
                         message=komen.reply,
-                        reply_to=reply_msg.id
+                        reply_to=reply_msg.id,
+                        parse_mode="Markdown"
                     )
             except Exception as e:
                 await bot.send_message("me", f"[ERROR Auto-Komen]\n`{e}`")
