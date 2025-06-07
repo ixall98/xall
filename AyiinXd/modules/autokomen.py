@@ -94,8 +94,7 @@ async def _(event):
         return await event.edit("❌ Belum set channel.\nGunakan: `.setch <trigger> <@channel>`")
 
     # Simpan reply ke database
-    db.set_reply(channel_id, trigger, reply_msg.id, str(reply_msg.chat_id))
-
+    db.set_reply(channel_id, trigger, msg_id=reply_msg.id, msg_chat=str(reply_msg.chat_id))
     # Buat link ke pesan reply
     try:
         link_preview = f"https://t.me/c/{str(reply_msg.chat_id)[4:]}/{reply_msg.id}"
