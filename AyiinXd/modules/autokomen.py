@@ -4,6 +4,7 @@ from telethon import events
 from telethon.tl.functions.messages import GetDiscussionMessageRequest
 from telethon.tl.types import Message
 from .sql_helper import autokomen_sql as db
+import asyncio
 
 LAST_CHANNEL = {}  # Simpan channel terakhir per userbot session
 
