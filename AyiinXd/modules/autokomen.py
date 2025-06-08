@@ -1,7 +1,6 @@
 from AyiinXd import CMD_HELP, bot
 from AyiinXd.ayiin import ayiin_cmd
 from telethon import events
-from telethon.tl.functions.messages import GetDiscussionMessageRequest
 from telethon.tl.types import Message
 from .sql_helper import autokomen_sql as db
 import asyncio
@@ -9,7 +8,7 @@ import time
 from telethon.errors import FloodWaitError
 
 LAST_CHANNEL = {}  # Simpan channel terakhir per userbot sessio
-last_checked = {}
+last_checked = {}  # cache waktu cek channel supaya gak spam
 
 @bot.on(events.NewMessage(incoming=True))
 async def komen_comment_section(event):
@@ -21,12 +20,10 @@ async def komen_comment_section(event):
 
     try:
         chat = await event.get_chat()
-    except Exception as e:
-        await bot.send_message("me", f"[⚠️ Gagal Ambil Chat]\n{e}")
+    except Exception:
         return
 
     if not getattr(chat, "username", None):
-        await bot.send_message("me", f"[⚠️ Channel Tanpa Username]\nID: `{event.chat_id}`")
         return
 
     cid = event.chat_id
@@ -39,9 +36,8 @@ async def komen_comment_section(event):
     channel_id = f"@{chat.username.lower()}"
     text = (event.raw_text or "").lower()
 
-    triggers = db.get_triggers(channel_id)
+    triggers = get_triggers(channel_id)  # pake fungsi dari model SQLAlchemy lo
     if not triggers:
-        await bot.send_message("me", f"[ℹ️ Tidak Ada Trigger]\nChannel: {channel_id}")
         return
 
     for komen in triggers:
@@ -49,44 +45,36 @@ async def komen_comment_section(event):
         if trigger not in text:
             continue
 
+        reply_to = getattr(event.message, "reply_to", None)
+        if not reply_to or not reply_to.reply_to_msg_id:
+            continue
+
+        reply_msg_id = reply_to.reply_to_msg_id
+        reply_chat_id = reply_to.channel_id or cid
+
+        await asyncio.sleep(0.5)
+
         try:
-            discussion_msg = await bot(GetDiscussionMessageRequest(
-                peer=event.chat_id,
-                msg_id=event.id
-            ))
-
-            if not discussion_msg.messages:
-                await bot.send_message("me", f"[⚠️ Diskusi Tidak Ditemukan]\nChannel: {channel_id}")
-                continue
-
-            reply_msg = discussion_msg.messages[0]
-            reply_chat_id = reply_msg.to_id.channel_id
-
-            await asyncio.sleep(0.5)  # Biar smooth
-
             if komen.msg_id and komen.msg_chat:
-                try:
-                    msg = await bot.get_messages(int(komen.msg_chat), ids=int(komen.msg_id))
-                    await bot.send_message(
-                        entity=reply_chat_id,
-                        message=msg,
-                        reply_to=reply_msg.id
-                    )
-                    await bot.send_message("me", f"[✅ Auto-Komen Media]\nChannel: {channel_id}\nTrigger: `{trigger}`")
-                except Exception as e:
-                    await bot.send_message("me", f"[❌ Gagal Kirim Media]\n{e}")
+                msg = await bot.get_messages(int(komen.msg_chat), ids=int(komen.msg_id))
+                await bot.send_message(
+                    entity=reply_chat_id,
+                    message=msg,
+                    reply_to=reply_msg_id
+                )
             elif komen.reply:
                 await bot.send_message(
                     entity=reply_chat_id,
                     message=komen.reply,
-                    reply_to=reply_msg.id,
+                    reply_to=reply_msg_id,
                     parse_mode="Markdown"
                 )
-                await bot.send_message("me", f"[✅ Auto-Komen Teks]\nChannel: {channel_id}\nTrigger: `{trigger}`")
-            break  # Cuma satu trigger yang jalan
+
+            await bot.send_message("me", f"[✅ Komen Otomatis]\nChannel: {channel_id}\nTrigger: `{trigger}`")
+            break
 
         except Exception as e:
-            await bot.send_message("me", f"[❌ Error Auto-Komen]\nChannel: {channel_id}\n{e}")
+            await bot.send_message("me", f"[❌ Error Kirim Komen]\nChannel: {channel_id}\n{e}")
             
 # ➕ SET CHANNEL
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
