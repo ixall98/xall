@@ -5,9 +5,9 @@ from telethon.tl.functions.messages import GetDiscussionMessageRequest
 from telethon.tl.types import Message
 from .sql_helper import autokomen_sql as db
 import asyncio
+from telethon.errors import FloodWaitError
 
-LAST_CHANNEL = {}  # Simpan channel terakhir per userbot session
-
+LAST_CHANNEL = {}  # Simpan channel terakhir per userbot sessio
 
 @bot.on(events.NewMessage(incoming=True))
 async def komen_comment_section(event):
@@ -19,7 +19,6 @@ async def komen_comment_section(event):
     channel_id = f"@{event.chat.username.lower()}"
     text = (event.raw_text or "").lower()
 
-    # Ambil semua trigger dari database
     triggers = db.get_triggers(channel_id)
     if not triggers:
         return
@@ -30,12 +29,18 @@ async def komen_comment_section(event):
             continue
 
         try:
-            # Hindari get_discussion kalau nggak perlu
-            discussion = getattr(event.message, 'reply_markup', None)
-            discussion_msg = await bot(GetDiscussionMessageRequest(
-                peer=event.chat_id,
-                msg_id=event.id
-            ))
+            # Dapetin kolom komentar / discussion thread
+            try:
+                discussion_msg = await bot(GetDiscussionMessageRequest(
+                    peer=event.chat_id,
+                    msg_id=event.id
+                ))
+            except FloodWaitError as e:
+                await asyncio.sleep(e.seconds)
+                discussion_msg = await bot(GetDiscussionMessageRequest(
+                    peer=event.chat_id,
+                    msg_id=event.id
+                ))
 
             if not discussion_msg.messages:
                 continue
@@ -43,17 +48,18 @@ async def komen_comment_section(event):
             reply_msg = discussion_msg.messages[0]
             reply_chat_id = reply_msg.to_id.channel_id
 
-            # Kasih delay kecil biar ga spam Telegram
+            # Kasih delay biar aman
             await asyncio.sleep(0.5)
 
-            # Kirim dari msg_id jika ada (berarti reply ke media atau teks simpanan)
+            # Kirim dari msg_id yang disimpan
             if komen.msg_id and komen.msg_chat:
                 try:
                     msg = await bot.get_messages(int(komen.msg_chat), ids=int(komen.msg_id))
                     await bot.send_message(
                         entity=reply_chat_id,
-                        message=msg,
-                        reply_to=reply_msg.id
+                        message=msg.message,
+                        reply_to=reply_msg.id,
+                        parse_mode="Markdown"
                     )
                 except Exception as e:
                     await bot.send_message("me", f"[❌ Error Auto-Komen Media]\n{e}")
@@ -66,12 +72,10 @@ async def komen_comment_section(event):
                     parse_mode="Markdown"
                 )
 
-            # Kalau udah match 1 trigger, keluar dari loop supaya ga dobel komen
-            break
+            break  # Stop setelah trigger pertama yang cocok
 
         except Exception as e:
             await bot.send_message("me", f"[❌ Error Auto-Komen]\n`{e}`")
-
 
 # ➕ SET CHANNEL
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
