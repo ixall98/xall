@@ -1,14 +1,22 @@
 from AyiinXd import CMD_HELP, bot
 from AyiinXd.ayiin import ayiin_cmd
-from telethon import events
+from telethon import events, Button
 from .sql_helper import filterchannel_sql as db
 
 # ➕ Tambah Channel yang Mau Difilter
-@ayiin_cmd(pattern="chadd(?: |$)(.*)")
+@ayiin_cmd(pattern="addch(?: |$)(.*)")
 async def add_channel(event):
     channel_id = event.pattern_match.group(1)
     if not channel_id:
         return await event.edit("Contoh: .addch @namachannel")
+    try:
+        entity = await bot.get_entity(channel_id)
+        if not entity.broadcast:
+            return await event.edit("Itu bukan channel, Cong!")
+        channel_id = f"@{entity.username}" if entity.username else str(entity.id)
+    except Exception as e:
+        return await event.edit(f"Gagal ambil info channel: {e}")
+
     if db.get_channel(channel_id):
         return await event.edit("Channel ini sudah ada.")
     db.add_channel(channel_id)
@@ -22,15 +30,17 @@ async def del_channel(event):
     db.delete_channel(channel_id)
     await event.edit(f"🗑️ Channel `{channel_id}` berhasil dihapus dari daftar filter.")
 
-# 🎯 Tambah Kata Filter
+# 🎯 Tambah Kata Filter (Support Multi)
 @ayiin_cmd(pattern="addfilter(?: |$)(.*)")
 async def add_filter(event):
-    word = event.pattern_match.group(1).lower()
+    text = event.pattern_match.group(1)
     channel_id = db.get_last()
     if not channel_id:
         return await event.edit("Set channel dulu pakai .addch")
-    db.add_filter(channel_id, word)
-    await event.edit(f"✅ Kata filter `{word}` ditambahkan untuk `{channel_id}`")
+    words = [w.strip().lower() for w in text.split(",") if w.strip()]
+    for word in words:
+        db.add_filter(channel_id, word)
+    await event.edit(f"✅ Kata filter `{', '.join(words)}` ditambahkan untuk `{channel_id}`")
 
 # 🧹 Hapus Kata Filter
 @ayiin_cmd(pattern="delfilter(?: |$)(.*)")
@@ -64,6 +74,7 @@ async def list_filter(event):
 async def monitor_channel(event):
     if event.chat.username is None:
         return
+
     channel_id = f"@{event.chat.username}"
     record = db.get_channel(channel_id)
     if not record:
@@ -72,6 +83,10 @@ async def monitor_channel(event):
     text = event.raw_text.lower()
     matched = [w for w in record.filters if w in text]
     if matched:
+        log_group = db.get_log_group()
+        if not log_group:
+            return
+
         link = f"https://t.me/{event.chat.username}/{event.id}"
         msg = (
             f"🚨 **Pesan Terfilter!**\n\n"
@@ -80,9 +95,11 @@ async def monitor_channel(event):
             f"📡 Channel: {channel_id}"
         )
         await bot.send_message(
-            db.get_log_group(),
+            log_group,
             msg,
-            buttons=[[("🔎 Lihat Pesan", link)]]
+            buttons=[
+                [Button.url("🔎 Lihat Pesan", link)]
+            ]
         )
 
 bot.add_event_handler(monitor_channel, events.NewMessage(incoming=True, chats=None))
