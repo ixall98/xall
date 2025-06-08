@@ -3,18 +3,21 @@ try:
 except ImportError:
     raise AttributeError
 
-from sqlalchemy import Column, String, Integer, BigInteger, PickleType
+from sqlalchemy import Column, String, Integer, PickleType
 
+# Tabel untuk menyimpan daftar channel dan kata filter-nya
 class FilterChannel(BASE):
     __tablename__ = "filter_channel"
-    channel = Column(String, primary_key=True)
+    channel = Column(String, primary_key=True)  # @username / ID sebagai string
     filters = Column(PickleType, default=list)
 
+# Tabel untuk nyimpan channel terakhir dan grup log
 class LogGroup(BASE):
     __tablename__ = "log_group"
-    id = Column(Integer, primary_key=True)
-    chat_id = Column(Integer)
+    id = Column(Integer, primary_key=True)  # 999 = last_channel, 1 = log_group
+    chat_id = Column(String)  # ubah dari Integer → String
 
+# Bikin tabel kalau belum ada
 FilterChannel.__table__.create(checkfirst=True)
 LogGroup.__table__.create(checkfirst=True)
 
@@ -55,8 +58,8 @@ def remove_filter(channel, word):
 
 # 📌 Set channel terakhir yang diedit
 def set_last(channel):
-    SESSION.query(LogGroup).delete()
-    SESSION.add(LogGroup(id=999, chat_id=channel))
+    SESSION.query(LogGroup).filter_by(id=999).delete()
+    SESSION.add(LogGroup(id=999, chat_id=str(channel)))
     SESSION.commit()
 
 def get_last():
@@ -66,7 +69,7 @@ def get_last():
 # 📝 Set grup log buat kirim alert
 def set_log_group(chat_id):
     SESSION.query(LogGroup).filter_by(id=1).delete()
-    SESSION.add(LogGroup(id=1, chat_id=chat_id))
+    SESSION.add(LogGroup(id=1, chat_id=str(chat_id)))
     SESSION.commit()
 
 def get_log_group():
