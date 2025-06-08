@@ -2,7 +2,16 @@ from AyiinXd import CMD_HELP, bot
 from AyiinXd.ayiin import ayiin_cmd
 from telethon import events
 from telethon.tl.types import Message
-from .sql_helper import autokomen_sql as db
+from sql_helper.autokomen_sql import (
+    get_triggers,
+    set_reply,
+    add_filter,
+    delete_trigger,
+    delete_reply,
+    get_komen,
+    get_all_replies
+)
+
 import asyncio
 import time
 from telethon.errors import FloodWaitError
