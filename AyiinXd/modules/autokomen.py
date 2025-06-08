@@ -9,7 +9,7 @@ import time
 from telethon.errors import FloodWaitError
 
 LAST_CHANNEL = {}  # Simpan channel terakhir per userbot sessio
-last_cheked = {}
+last_checked = {}
 
 @bot.on(events.NewMessage(incoming=True))
 async def komen_comment_section(event):
