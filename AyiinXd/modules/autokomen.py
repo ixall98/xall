@@ -5,6 +5,7 @@ from telethon.tl.functions.messages import GetDiscussionMessageRequest
 from telethon.tl.types import Message
 from .sql_helper import autokomen_sql as db
 import asyncio
+import time
 from telethon.errors import FloodWaitError
 
 LAST_CHANNEL = {}  # Simpan channel terakhir per userbot sessio
