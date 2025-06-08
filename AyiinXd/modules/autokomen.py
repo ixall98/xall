@@ -16,6 +16,14 @@ async def komen_comment_section(event):
     if not event.is_channel or event.chat.username is None:
         return
 
+    cid = event.chat_id
+    now = time.time()
+
+    # ⛔️ Skip kalau channel ini baru aja dicek < 5 detik lalu
+    if cid in last_checked and now - last_checked[cid] < 10:
+        return
+    last_checked[cid] = now  # ✅ Simpan waktu terakhir dicek
+
     channel_id = f"@{event.chat.username.lower()}"
     text = (event.raw_text or "").lower()
 
@@ -29,18 +37,10 @@ async def komen_comment_section(event):
             continue
 
         try:
-            # Dapetin kolom komentar / discussion thread
-            try:
-                discussion_msg = await bot(GetDiscussionMessageRequest(
-                    peer=event.chat_id,
-                    msg_id=event.id
-                ))
-            except FloodWaitError as e:
-                await asyncio.sleep(e.seconds)
-                discussion_msg = await bot(GetDiscussionMessageRequest(
-                    peer=event.chat_id,
-                    msg_id=event.id
-                ))
+            discussion_msg = await bot(GetDiscussionMessageRequest(
+                peer=event.chat_id,
+                msg_id=event.id
+            ))
 
             if not discussion_msg.messages:
                 continue
@@ -48,22 +48,18 @@ async def komen_comment_section(event):
             reply_msg = discussion_msg.messages[0]
             reply_chat_id = reply_msg.to_id.channel_id
 
-            # Kasih delay biar aman
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.5)  # kasih delay biar smooth
 
-            # Kirim dari msg_id yang disimpan
             if komen.msg_id and komen.msg_chat:
                 try:
                     msg = await bot.get_messages(int(komen.msg_chat), ids=int(komen.msg_id))
                     await bot.send_message(
                         entity=reply_chat_id,
-                        message=msg.message,
-                        reply_to=reply_msg.id,
-                        parse_mode="Markdown"
+                        message=msg,
+                        reply_to=reply_msg.id
                     )
                 except Exception as e:
                     await bot.send_message("me", f"[❌ Error Auto-Komen Media]\n{e}")
-
             elif komen.reply:
                 await bot.send_message(
                     entity=reply_chat_id,
@@ -71,12 +67,11 @@ async def komen_comment_section(event):
                     reply_to=reply_msg.id,
                     parse_mode="Markdown"
                 )
-
-            break  # Stop setelah trigger pertama yang cocok
+            break
 
         except Exception as e:
             await bot.send_message("me", f"[❌ Error Auto-Komen]\n`{e}`")
-
+            
 # ➕ SET CHANNEL
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
 async def _(event):
