@@ -15,22 +15,33 @@ last_checked = {}
 async def komen_comment_section(event):
     if not isinstance(event.message, Message):
         return
-    if not event.is_channel or event.chat.username is None:
+
+    if not event.is_channel:
+        return
+
+    try:
+        chat = await event.get_chat()
+    except Exception as e:
+        await bot.send_message("me", f"[⚠️ Gagal Ambil Chat]\n{e}")
+        return
+
+    if not getattr(chat, "username", None):
+        await bot.send_message("me", f"[⚠️ Channel Tanpa Username]\nID: `{event.chat_id}`")
         return
 
     cid = event.chat_id
     now = time.time()
 
-    # ⛔️ Skip kalau channel ini baru aja dicek < 5 detik lalu
     if cid in last_checked and now - last_checked[cid] < 10:
         return
-    last_checked[cid] = now  # ✅ Simpan waktu terakhir dicek
+    last_checked[cid] = now
 
-    channel_id = f"@{event.chat.username.lower()}"
+    channel_id = f"@{chat.username.lower()}"
     text = (event.raw_text or "").lower()
 
     triggers = db.get_triggers(channel_id)
     if not triggers:
+        await bot.send_message("me", f"[ℹ️ Tidak Ada Trigger]\nChannel: {channel_id}")
         return
 
     for komen in triggers:
@@ -45,12 +56,13 @@ async def komen_comment_section(event):
             ))
 
             if not discussion_msg.messages:
+                await bot.send_message("me", f"[⚠️ Diskusi Tidak Ditemukan]\nChannel: {channel_id}")
                 continue
 
             reply_msg = discussion_msg.messages[0]
             reply_chat_id = reply_msg.to_id.channel_id
 
-            await asyncio.sleep(0.5)  # kasih delay biar smooth
+            await asyncio.sleep(0.5)  # Biar smooth
 
             if komen.msg_id and komen.msg_chat:
                 try:
@@ -60,8 +72,9 @@ async def komen_comment_section(event):
                         message=msg,
                         reply_to=reply_msg.id
                     )
+                    await bot.send_message("me", f"[✅ Auto-Komen Media]\nChannel: {channel_id}\nTrigger: `{trigger}`")
                 except Exception as e:
-                    await bot.send_message("me", f"[❌ Error Auto-Komen Media]\n{e}")
+                    await bot.send_message("me", f"[❌ Gagal Kirim Media]\n{e}")
             elif komen.reply:
                 await bot.send_message(
                     entity=reply_chat_id,
@@ -69,10 +82,11 @@ async def komen_comment_section(event):
                     reply_to=reply_msg.id,
                     parse_mode="Markdown"
                 )
-            break
+                await bot.send_message("me", f"[✅ Auto-Komen Teks]\nChannel: {channel_id}\nTrigger: `{trigger}`")
+            break  # Cuma satu trigger yang jalan
 
         except Exception as e:
-            await bot.send_message("me", f"[❌ Error Auto-Komen]\n`{e}`")
+            await bot.send_message("me", f"[❌ Error Auto-Komen]\nChannel: {channel_id}\n{e}")
             
 # ➕ SET CHANNEL
 @ayiin_cmd(pattern="setch(?: |$)(.*)")
