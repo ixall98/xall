@@ -46,8 +46,8 @@ def add_or_update_channel(channel_id, username, members):
     SESSION.add(ch)
     SESSION.flush()
     for m in members:
-        # m harus dict dengan "id" dan "username"
-        ch.members.append(AutoBanMember(channel_id=channel_id, user_id=m["id"], username=m.get("username")))
+        if isinstance(m, dict) and "username" in m:
+            ch.members.append(AutoBanMember(channel_id=channel_id, username=m["username"]))
     SESSION.commit()
 
 def get_prev_members(channel_id):
