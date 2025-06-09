@@ -70,36 +70,39 @@ async def list_filter(event):
     filters = row.filters if row.filters else []
     msg += f"\n📢 `{row.channel}`\n🔑 Filter: `{', '.join(filters)}`"
 
-# 🔍 Listener buat pantau postingan channel
-async def monitor_channel(event):
-    if event.chat.username is None:
-        return
 
-    channel_id = f"@{event.chat.username}"
+@bot.on(events.NewMessage())
+async def monitor_channel(event):
+    chat = await event.get_chat()
+
+    if not getattr(chat, "broadcast", False):
+        return  # Bukan channel
+
+    channel_id = f"@{chat.username}" if chat.username else str(chat.id)
+
     record = db.get_channel(channel_id)
     if not record:
         return
 
     text = event.raw_text.lower()
-    matched = [w for w in record.filters if w in text]
+    matched = [w for w in (record.filters or []) if w in text]
+
     if matched:
         log_group = db.get_log_group()
         if not log_group:
             return
 
-        link = f"https://t.me/{event.chat.username}/{event.id}"
+        link = f"https://t.me/{chat.username}/{event.id}" if chat.username else None
+
         msg = (
             f"🚨 **Pesan Terfilter!**\n\n"
             f"🧷 Kata: `{', '.join(matched)}`\n"
             f"📝 Isi: {event.raw_text}\n"
             f"📡 Channel: {channel_id}"
         )
+
         await bot.send_message(
             log_group,
             msg,
-            buttons=[
-                [Button.url("🔎 Lihat Pesan", link)]
-            ]
-        )
-
-bot.add_event_handler(monitor_channel, events.NewMessage(incoming=True, chats=None))
+            buttons=[[Button.url("🔎 Lihat Pesan", link)]] if link else None
+    )
