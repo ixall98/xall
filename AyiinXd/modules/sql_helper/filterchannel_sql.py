@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, BigInteger, PickleType
-from AyiinXd import BASE, SESSION
+from AyiinXd.modules.sql_helper import BASE, SESSION
 
 class FilterChannel(BASE):
     __tablename__ = "filter_channel"
