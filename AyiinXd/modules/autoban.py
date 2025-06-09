@@ -1,17 +1,14 @@
-from AyiinXd import bot, BOTLOG_CHATID
+from telethon import events
+from AyiinXd import bot
 from AyiinXd.ayiin import ayiin_cmd
-from telethon.tl.functions.channels import EditBannedRequest
-from telethon.tl.types import ChatBannedRights
 from AyiinXd.modules.sql_helper.autoban_sql import (
-    get_all_channels,
     add_channel,
-    remove_channel,
-    get_prev_members,
     add_or_update_channel,
+    get_all_channels,
+    get_prev_members,
     add_banned_user,
-    get_banned_users,
+    get_banned_users
 )
-import asyncio
 
 @ayiin_cmd(pattern=r"autoban(?: |$)(.*)")
 async def enable_autoban(e):
@@ -22,83 +19,69 @@ async def enable_autoban(e):
     try:
         entity = await bot.get_entity(input_str)
         participants = await bot.get_participants(entity)
-        members = [{"id": u.id, "username": u.username} for u in participants]
+        usernames = [u.username for u in participants if u.username]
         add_channel(entity.id, input_str)
-        add_or_update_channel(entity.id, input_str, members)
+        add_or_update_channel(entity.id, input_str, usernames)
         await e.edit(f"✅ Auto-ban aktif di {input_str}.")
     except Exception as err:
         await e.edit(f"❌ Gagal: {err}")
 
 @ayiin_cmd(pattern=r"stopban(?: |$)(.*)")
-async def disable_autoban(e):
+async def stop_autoban(e):
     input_str = e.pattern_match.group(1)
     if not input_str.startswith("@"):
         return await e.edit("❌ Gunakan format: `.stopban @username_channel`")
+    from AyiinXd.modules.sql_helper.autoban_sql import remove_channel
     try:
-        entity = await bot.get_entity(input_str)
-        remove_channel(entity.id)
-        await e.edit(f"✅ Auto-ban dimatikan di {input_str}.")
+        remove_channel((await bot.get_entity(input_str)).id)
+        await e.edit(f"🛑 Auto-ban dimatikan dari {input_str}.")
     except Exception as err:
         await e.edit(f"❌ Gagal: {err}")
 
-@ayiin_cmd(pattern=r"listban$")
-async def list_banned(e):
-    result = get_banned_users()
-    if not result:
-        return await e.edit("🚫 Belum ada user yang dibanned otomatis.")
-    msg = "📄 Daftar User yang Diban Otomatis:\n"
-    data = {}
-    for ch, uid in result:
-        data.setdefault(ch, []).append(uid)
-    for ch, users in data.items():
-        msg += f"\n📛 Channel: {ch}\n"
-        for u in users:
-            msg += f"• {u}\n"
-    await e.edit(msg)
+@ayiin_cmd(pattern="listban$")
+async def list_autoban(e):
+    try:
+        chans = get_all_channels()
+        if not chans:
+            return await e.edit("📭 Belum ada channel yang aktif auto-ban.")
+        teks = "📌 **Auto-ban aktif di channel:**\n\n"
+        for c in chans:
+            teks += f"• `{c.channel_username}`\n"
+        await e.edit(teks)
+    except Exception as err:
+        await e.edit(f"❌ Error: {err}")
 
-async def get_users(channel):
-    users = []
-    async for user in bot.iter_participants(channel):
-        users.append({
-            "id": user.id,
-            "username": user.username
-        })
-    return users
+# Handler auto-ban pas user keluar dari channel
+@bot.on(events.ChatAction)
+async def autoban_trigger(event):
+    if event.user_joined or event.user_added:
+        return
 
-async def auto_ban_loop():
-    while True:
-        for ch in get_all_channels():
-            try:
-                entity = await bot.get_entity(ch.channel_username)
-                current_users = await get_users(entity)
-                prev_users = get_prev_members(ch.channel_id) or []
+    try:
+        all_channels = get_all_channels()
+        for chan in all_channels:
+            prev_members = get_prev_members(chan.channel_id)
+            banned_users = get_banned_users()
 
-                current_ids = {u["id"] for u in current_users}
-                prev_ids = {u["id"] for u in prev_users}
+            # Kalo user yang keluar gak ada di data lama, skip
+            if not event.user:
+                continue
+            if event.user.username in prev_members:
+                continue
 
-                gone_ids = prev_ids - current_ids
-                gone_users = [u for u in prev_users if u["id"] in gone_ids]
-
-                for user in gone_users:
-                    try:
-                        await bot(EditBannedRequest(
-                            channel=entity,
-                            user_id=user["id"],
-                            banned_rights=ChatBannedRights(view_messages=True)
-                        ))
-                        add_banned_user(ch.channel_username, user["id"])
-                        await bot.send_message(
-                            BOTLOG_CHATID,
-                            f"🚫 **AutoBan:**\n• User ID: `{user['id']}`\n• Channel: {ch.channel_username}"
+            # Jika belum pernah dibanned di channel ini
+            if (chan.channel_username, event.user.username) not in banned_users:
+                try:
+                    await bot(EditBannedRequest(
+                        event.chat_id,
+                        event.user_id,
+                        ChatBannedRights(
+                            until_date=None,
+                            view_messages=True
                         )
-                    except Exception as e:
-                        print(f"[AutoBanError] ID {user['id']} gagal diban: {e}")
-
-                add_or_update_channel(ch.channel_id, ch.channel_username, current_users)
-
-            except Exception as e:
-                print(f"[AutoBanLoop Error] {ch.channel_username}: {e}")
-
-        await asyncio.sleep(300)
-
-bot.loop.create_task(auto_ban_loop())
+                    ))
+                    add_banned_user(chan.channel_username, event.user.username)
+                except Exception:
+                    pass
+    except Exception:
+        pass
