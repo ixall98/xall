@@ -67,9 +67,9 @@ async def list_filter(event):
         return await event.edit("Ga ada data filter.")
     msg = "**📋 Daftar Filter Channel**\n"
     for row in all_data:
-    filters = row.filters if row.filters else []
-    msg += f"\n📢 `{row.channel}`\n🔑 Filter: `{', '.join(filters)}`"
-
+        filters = row.filters if row.filters else []
+        msg += f"\n📢 `{row.channel}`\n🔑 Filter: `{', '.join(filters)}`"
+    await event.edit(msg)
 
 @bot.on(events.NewMessage())
 async def monitor_channel(event):
