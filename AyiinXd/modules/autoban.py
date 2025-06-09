@@ -2,7 +2,8 @@ import asyncio
 from telethon import functions
 from telethon.tl.functions.channels import EditBannedRequest
 from telethon.tl.types import ChatBannedRights
-from AyiinXd.ayiin import ayiin_cmd, bot
+from AyiinXd.ayiin import ayiin_cmd
+from AyiinXd import CMD_HELP, bot
 from AyiinXd.modules.sql_helper.autoban_sql import (
     add_channel, remove_channel, get_all_channels
 )
