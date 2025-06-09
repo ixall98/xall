@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Integer, BigInteger, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
-from AyiinXd import BASE, SESSION
+from AyiinXd.modules.sql_helper import BASE, SESSION
 
 # Tabel channel yang diaktifkan auto-ban
 class AutoBanChannel(BASE):
