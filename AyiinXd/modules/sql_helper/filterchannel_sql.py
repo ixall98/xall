@@ -45,9 +45,12 @@ def get_all():
 # ➕ Tambah kata filter ke channel
 def add_filter(channel, word):
     row = get_channel(channel)
-    if row and word not in row.filters:
-        row.filters.append(word)
-        SESSION.commit()
+    if row:
+        if row.filters is None:
+            row.filters = []
+        if word and word not in row.filters:
+            row.filters.append(word)
+            SESSION.commit()
 
 # 🧹 Hapus kata filter dari channel
 def remove_filter(channel, word):
