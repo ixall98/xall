@@ -1,7 +1,7 @@
 from AyiinXd import CMD_HELP, bot
 from AyiinXd.ayiin import ayiin_cmd
 from telethon import events, Button
-from AyiinXd.sql_helper import filterchannel_sql as db
+from AyiinXd.modules.sql_helper import filterchannel_sql as db
 
 # ➕ Tambah Channel ke Filter
 @ayiin_cmd(pattern="addch(?: |$)(.*)")
