@@ -14,7 +14,7 @@ async def add_channel(event):
         entity = await bot.get_entity(channel_id)
         if not getattr(entity, "broadcast", False):
             return await event.edit("Itu bukan channel, Cong!")
-        channel_id = f"@{entity.username}" if entity.username else str(entity.id)
+        channel_id = entity.id  # langsung ambil ID integer-nya
     except Exception as e:
         return await event.edit(f"Gagal ambil info channel:\n`{e}`")
 
@@ -87,7 +87,7 @@ async def monitor_channel(event):
     if not getattr(chat, "broadcast", False):
         return  # Bukan channel
 
-    channel_id = f"@{chat.username}" if chat.username else str(chat.id)
+    channel_id = chat.id
     record = db.get_channel(channel_id)
     if not record or not record.filters:
         return
