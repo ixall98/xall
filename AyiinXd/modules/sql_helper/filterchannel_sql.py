@@ -1,23 +1,16 @@
-try:
-    from AyiinXd.modules.sql_helper import BASE, SESSION
-except ImportError:
-    raise AttributeError
-
 from sqlalchemy import Column, String, Integer, PickleType
+from AyiinXd.modules.sql_helper import BASE, SESSION
 
-# Tabel untuk menyimpan daftar channel dan kata filter-nya
 class FilterChannel(BASE):
     __tablename__ = "filter_channel"
-    channel = Column(String, primary_key=True)  # @username / ID sebagai string
+    channel = Column(String, primary_key=True)
     filters = Column(PickleType, default=list)
 
-# Tabel untuk nyimpan channel terakhir dan grup log
 class LogGroup(BASE):
     __tablename__ = "log_group"
-    id = Column(Integer, primary_key=True)  # 999 = last_channel, 1 = log_group
-    chat_id = Column(String)  # ubah dari Integer → String
+    id = Column(Integer, primary_key=True)
+    chat_id = Column(Integer)
 
-# Bikin tabel kalau belum ada
 FilterChannel.__table__.create(checkfirst=True)
 LogGroup.__table__.create(checkfirst=True)
 
@@ -46,23 +39,26 @@ def get_all():
 def add_filter(channel, word):
     row = get_channel(channel)
     if row:
-        if row.filters is None:
-            row.filters = []
-        if word and word not in row.filters:
-            row.filters.append(word)
+        filters = row.filters if row.filters else []
+        if word not in filters:
+            filters.append(word)
+            row.filters = filters
             SESSION.commit()
 
 # 🧹 Hapus kata filter dari channel
 def remove_filter(channel, word):
     row = get_channel(channel)
-    if row and word in row.filters:
-        row.filters.remove(word)
-        SESSION.commit()
+    if row:
+        filters = row.filters if row.filters else []
+        if word in filters:
+            filters.remove(word)
+            row.filters = filters
+            SESSION.commit()
 
 # 📌 Set channel terakhir yang diedit
 def set_last(channel):
     SESSION.query(LogGroup).filter_by(id=999).delete()
-    SESSION.add(LogGroup(id=999, chat_id=str(channel)))
+    SESSION.add(LogGroup(id=999, chat_id=channel))
     SESSION.commit()
 
 def get_last():
@@ -72,7 +68,7 @@ def get_last():
 # 📝 Set grup log buat kirim alert
 def set_log_group(chat_id):
     SESSION.query(LogGroup).filter_by(id=1).delete()
-    SESSION.add(LogGroup(id=1, chat_id=str(chat_id)))
+    SESSION.add(LogGroup(id=1, chat_id=chat_id))
     SESSION.commit()
 
 def get_log_group():
