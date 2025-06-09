@@ -56,47 +56,53 @@ async def list_banned(e):
         msg += f"\n📛 Channel: {ch}\n"
         for u in users:
             msg += f"• {u}\n"
-    await e.edit(msg)
-
-# Loop auto-ban
-async def get_usernames(channel):
-    usernames = []
+    await e.edit(msg
+                 
+async def get_users(channel):
+    users = []
     async for user in bot.iter_participants(channel):
-        if user.username:
-            usernames.append(user.username)
-    return usernames
+        users.append({
+            "id": user.id,
+            "username": user.username
+        })
+    return users
 
 async def auto_ban_loop():
     while True:
         for ch in get_all_channels():
             try:
                 entity = await bot.get_entity(ch.channel_username)
-                current = set(await get_usernames(entity))
-                prev = get_prev_members(ch.channel_id)
-                gone = prev - current
+                current_users = await get_users(entity)
+                prev_users = get_prev_members(ch.channel_id) or []
 
-                for username in gone:
+                current_ids = {u["id"] for u in current_users}
+                prev_ids = {u["id"] for u in prev_users}
+
+                gone_ids = prev_ids - current_ids
+                gone_users = [u for u in prev_users if u["id"] in gone_ids]
+
+                for user in gone_users:
                     try:
-                        user = await bot.get_entity(username)
                         await bot(EditBannedRequest(
                             channel=entity,
-                            user_id=user.id,
+                            user_id=user["id"],
                             banned_rights=ChatBannedRights(view_messages=True)
                         ))
-                        add_banned_user(ch.channel_username, f"@{username}")
+                        add_banned_user(ch.channel_username, f"@{user['username']}" if user["username"] else str(user["id"]))
                         await bot.send_message(
                             BOTLOG_CHATID,
-                            f"🚫 **AutoBan:**\n• User: @{username}\n• Channel: {ch.channel_username}"
+                            f"🚫 **AutoBan:**\n• User: @{user['username'] or 'Unknown'}\n• Channel: {ch.channel_username}"
                         )
                     except Exception as e:
-                        print(f"[AutoBanError] @{username}: {e}")
+                        print(f"[AutoBanError] ID {user['id']} gagal diban: {e}")
 
-                add_or_update_channel(ch.channel_id, ch.channel_username, list(current))
+                # Simpan update user terbaru
+                add_or_update_channel(ch.channel_id, ch.channel_username, current_users)
 
             except Exception as e:
                 print(f"[AutoBanLoop Error] {ch.channel_username}: {e}")
 
         await asyncio.sleep(300)  # tiap 5 menit
 
-# Start loop
+# Jalankan loop
 bot.loop.create_task(auto_ban_loop())
