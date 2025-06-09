@@ -56,7 +56,7 @@ async def list_banned(e):
         msg += f"\n📛 Channel: {ch}\n"
         for u in users:
             msg += f"• {u}\n"
-    await e.edit(msg
+    await e.edit(msg)
                  
 async def get_users(channel):
     users = []
