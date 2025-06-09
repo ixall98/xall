@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Boolean
-from modules.sql_helper import BASE, SESSION
+from AyiinXd.modules.sql_helper import BASE, SESSION
 
 class AutoBanChannel(BASE):
     __tablename__ = "autoban_channel"
