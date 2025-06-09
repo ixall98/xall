@@ -12,9 +12,10 @@ class AutoBanMember(BASE):
     __tablename__ = "autoban_members"
     id = Column(Integer, primary_key=True)
     channel_id = Column(BigInteger, ForeignKey("autoban_channels.channel_id"))
+    user_id = Column(BigInteger)          # tambah kolom user_id
     username = Column(String)
 
-    __table_args__ = (UniqueConstraint("channel_id", "username", name="user_per_channel"),)
+    __table_args__ = (UniqueConstraint("channel_id", "user_id", name="user_per_channel"),)
 
 class AutoBannedUser(BASE):
     __tablename__ = "autoban_banned"
@@ -45,12 +46,14 @@ def add_or_update_channel(channel_id, username, members):
     SESSION.add(ch)
     SESSION.flush()
     for m in members:
-        ch.members.append(AutoBanMember(channel_id=channel_id, username=m))
+        # m harus dict dengan "id" dan "username"
+        ch.members.append(AutoBanMember(channel_id=channel_id, user_id=m["id"], username=m.get("username")))
     SESSION.commit()
 
 def get_prev_members(channel_id):
     rows = SESSION.query(AutoBanMember).filter_by(channel_id=channel_id).all()
-    return set(r.username for r in rows)
+    # Return list dict user_id dan username supaya compatible di loop utama
+    return [{"id": r.user_id, "username": r.username} for r in rows]
 
 def add_banned_user(channel_username, username):
     exists = SESSION.query(AutoBannedUser).filter_by(channel_username=channel_username, username=username).first()
