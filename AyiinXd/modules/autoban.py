@@ -13,7 +13,6 @@ from AyiinXd.modules.sql_helper.autoban_sql import (
 )
 import asyncio
 
-# Handler command
 @ayiin_cmd(pattern=r"autoban(?: |$)(.*)")
 async def enable_autoban(e):
     input_str = e.pattern_match.group(1)
@@ -42,22 +41,21 @@ async def disable_autoban(e):
     except Exception as err:
         await e.edit(f"❌ Gagal: {err}")
 
-@ayiin_cmd(pattern=r"listban(?: |$)(.*)")
+@ayiin_cmd(pattern=r"listban$")
 async def list_banned(e):
-    input_str = e.pattern_match.group(1)
     result = get_banned_users()
     if not result:
         return await e.edit("🚫 Belum ada user yang dibanned otomatis.")
     msg = "📄 Daftar User yang Diban Otomatis:\n"
     data = {}
-    for ch, user in result:
-        data.setdefault(ch, []).append(user)
+    for ch, uid in result:
+        data.setdefault(ch, []).append(uid)
     for ch, users in data.items():
         msg += f"\n📛 Channel: {ch}\n"
         for u in users:
             msg += f"• {u}\n"
     await e.edit(msg)
-                 
+
 async def get_users(channel):
     users = []
     async for user in bot.iter_participants(channel):
@@ -88,21 +86,19 @@ async def auto_ban_loop():
                             user_id=user["id"],
                             banned_rights=ChatBannedRights(view_messages=True)
                         ))
-                        add_banned_user(ch.channel_username, f"@{user['username']}" if user["username"] else str(user["id"]))
+                        add_banned_user(ch.channel_username, user["id"])
                         await bot.send_message(
                             BOTLOG_CHATID,
-                            f"🚫 **AutoBan:**\n• User: @{user['username'] or 'Unknown'}\n• Channel: {ch.channel_username}"
+                            f"🚫 **AutoBan:**\n• User ID: `{user['id']}`\n• Channel: {ch.channel_username}"
                         )
                     except Exception as e:
                         print(f"[AutoBanError] ID {user['id']} gagal diban: {e}")
 
-                # Simpan update user terbaru
                 add_or_update_channel(ch.channel_id, ch.channel_username, current_users)
 
             except Exception as e:
                 print(f"[AutoBanLoop Error] {ch.channel_username}: {e}")
 
-        await asyncio.sleep(300)  # tiap 5 menit
+        await asyncio.sleep(300)
 
-# Jalankan loop
 bot.loop.create_task(auto_ban_loop())
