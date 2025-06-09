@@ -23,9 +23,9 @@ async def enable_autoban(e):
     try:
         entity = await bot.get_entity(input_str)
         participants = await bot.get_participants(entity)
-        usernames = [u.username for u in participants if u.username]
+        members = [{"id": u.id, "username": u.username} for u in participants]
         add_channel(entity.id, input_str)
-        add_or_update_channel(entity.id, input_str, usernames)
+        add_or_update_channel(entity.id, input_str, members)
         await e.edit(f"✅ Auto-ban aktif di {input_str}.")
     except Exception as err:
         await e.edit(f"❌ Gagal: {err}")
