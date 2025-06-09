@@ -33,15 +33,15 @@ async def del_channel(event):
 # 🎯 Tambah Kata Filter (Support Multi)
 @ayiin_cmd(pattern="addfilter(?: |$)(.*)")
 async def add_filter(event):
-    text = event.pattern_match.group(1)
+    word = event.pattern_match.group(1).strip().lower()
+    if not word:
+        return await event.edit("Ketik `.addfilter kata_yang_difilter`")
     channel_id = db.get_last()
     if not channel_id:
-        return await event.edit("Set channel dulu pakai .addch")
-    words = [w.strip().lower() for w in text.split(",") if w.strip()]
-    for word in words:
-        db.add_filter(channel_id, word)
-    await event.edit(f"✅ Kata filter `{', '.join(words)}` ditambahkan untuk `{channel_id}`")
-
+        return await event.edit("Set channel dulu pakai `.addch @namachannel`")
+    db.add_filter(channel_id, word)
+    await event.edit(f"✅ Kata filter `{word}` ditambahkan untuk `{channel_id}`")
+    
 # 🧹 Hapus Kata Filter
 @ayiin_cmd(pattern="delfilter(?: |$)(.*)")
 async def del_filter(event):
@@ -67,8 +67,8 @@ async def list_filter(event):
         return await event.edit("Ga ada data filter.")
     msg = "**📋 Daftar Filter Channel**\n"
     for row in all_data:
-        msg += f"\n📢 `{row.channel}`\n🔑 Filter: `{', '.join(row.filters)}`"
-    await event.edit(msg)
+    filters = row.filters if row.filters else []
+    msg += f"\n📢 `{row.channel}`\n🔑 Filter: `{', '.join(filters)}`"
 
 # 🔍 Listener buat pantau postingan channel
 async def monitor_channel(event):
