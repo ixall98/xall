@@ -6,24 +6,29 @@ from AyiinXd.modules.sql_helper import filterchannel_sql as db
 # ➕ Tambah Channel ke Filter
 @ayiin_cmd(pattern="addch(?: |$)(.*)")
 async def add_channel(event):
-    channel_id = event.pattern_match.group(1)
-    if not channel_id:
-        return await event.edit("Contoh: `.addch @namachannel`")
+    arg = event.pattern_match.group(1)
+    if not arg:
+        return await event.edit("Contoh: .addch @namachannel")
 
     try:
-        entity = await bot.get_entity(channel_id)
-        if not getattr(entity, "broadcast", False):
+        entity = await bot.get_entity(arg)
+        if not entity.broadcast:
             return await event.edit("Itu bukan channel, Cong!")
-        channel_id = entity.id  # langsung ambil ID integer-nya
+
+        cid = entity.id
+        uname = entity.username
+        title = entity.title
+
     except Exception as e:
-        return await event.edit(f"Gagal ambil info channel:\n`{e}`")
+        return await event.edit(f"Gagal ambil info channel: {e}")
 
-    if db.get_channel(channel_id):
-        return await event.edit("Channel ini sudah ada di database.")
-    db.add_channel(channel_id)
-    db.set_last(channel_id)
-    await event.edit(f"✅ Channel `{channel_id}` berhasil ditambahkan ke daftar filter.")
-
+    if db.get_channel(cid):
+        return await event.edit("Channel ini sudah ada.")
+    
+    db.add_channel(cid, uname, title)
+    db.set_last(cid)
+    await event.edit(f"✅ Channel `{title}` berhasil ditambahkan ke daftar filter.")
+    
 # ❌ Hapus Channel dari Filter
 @ayiin_cmd(pattern="delch(?: |$)(.*)")
 async def del_channel(event):
@@ -80,38 +85,37 @@ async def list_filter(event):
     await event.edit(msg)
 
 # 🚨 Monitor Channel Post
-@bot.on(events.NewMessage(incoming=True))
+@bot.on(events.NewMessage())
 async def monitor_channel(event):
     chat = await event.get_chat()
 
     if not getattr(chat, "broadcast", False):
-        return  # Bukan channel
+        return
 
     channel_id = chat.id
     record = db.get_channel(channel_id)
-    if not record or not record.filters:
+    if not record:
         return
 
     text = event.raw_text.lower()
-    matched = [w for w in record.filters if w in text]
-    if not matched:
-        return
+    matched = [w for w in (record.filters or []) if w in text]
 
-    log_group = db.get_log_group()
-    if not log_group:
-        return
+    if matched:
+        log_group = db.get_log_group()
+        if not log_group:
+            return
 
-    link = f"https://t.me/{chat.username}/{event.id}" if chat.username else None
+        link = f"https://t.me/{record.username}/{event.id}" if record.username else None
 
-    msg = (
-        f"🚨 **Pesan Terfilter!**\n\n"
-        f"🧷 Kata: `{', '.join(matched)}`\n"
-        f"📝 Isi: {event.raw_text}\n"
-        f"📡 Channel: {channel_id}"
-    )
+        msg = (
+            f"🚨 **Pesan Terfilter!**\n\n"
+            f"🧷 Kata: `{', '.join(matched)}`\n"
+            f"📝 Isi: {event.raw_text}\n"
+            f"📡 Channel: {record.title or record.username or channel_id}"
+        )
 
-    await bot.send_message(
-        log_group,
-        msg,
-        buttons=[[Button.url("🔎 Lihat Pesan", link)]] if link else None
-)
+        await bot.send_message(
+            log_group,
+            msg,
+            buttons=[[Button.url("🔎 Lihat Pesan", link)]] if link else None
+        )
