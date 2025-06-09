@@ -3,7 +3,7 @@ from telethon import functions
 from telethon.tl.functions.channels import EditBannedRequest
 from telethon.tl.types import ChatBannedRights
 from AyiinXd import ayiin_cmd, bot
-from AyiinXd.modules.sql_helper.autoban_leave_sql import (
+from AyiinXd.modules.sql_helper.autoban_sql import (
     add_channel, remove_channel, get_all_channels
 )
 
