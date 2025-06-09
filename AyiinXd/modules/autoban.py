@@ -14,7 +14,7 @@ from AyiinXd.modules.sql_helper.autoban_sql import (
 import asyncio
 
 # Handler command
-@ayiin_cmd(pattern=r"autoban(?: |$)(.*)"))
+@ayiin_cmd(pattern=r"autoban(?: |$)(.*)")
 async def enable_autoban(e):
     input_str = e.pattern_match.group(1)
     if not input_str.startswith("@"):
@@ -30,7 +30,7 @@ async def enable_autoban(e):
     except Exception as err:
         await e.edit(f"❌ Gagal: {err}")
 
-@ayiin_cmd(pattern=r"stopban(?: |$)(.*)"))
+@ayiin_cmd(pattern=r"stopban(?: |$)(.*)")
 async def disable_autoban(e):
     input_str = e.pattern_match.group(1)
     if not input_str.startswith("@"):
@@ -42,7 +42,7 @@ async def disable_autoban(e):
     except Exception as err:
         await e.edit(f"❌ Gagal: {err}")
 
-@ayiin_cmd(pattern=r"listban(?: |$)(.*)"))
+@ayiin_cmd(pattern=r"listban(?: |$)(.*)")
 async def list_banned(e):
     input_str = e.pattern_match.group(1)
     result = get_banned_users()
