@@ -1,9 +1,10 @@
+import os
 import asyncpg
 
-# Koneksi PostgreSQL
 async def get_connection():
-    return await asyncpg.connect(dsn="DATABASE_URL")
-
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+    return await asyncpg.connect(dsn=DATABASE_URL)
+    
 # Tambah channel
 async def add_sfs_channels(channels: list[str]):
     conn = await get_connection()
