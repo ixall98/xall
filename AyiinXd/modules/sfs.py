@@ -59,7 +59,8 @@ async def auto_sfs(event):
     if not channels:
         return
 
-    buttons = [[Button.url(f"🔗 {c}", f"https://t.me/{c.strip('@')}")] for c in channels]
+    buttons = [Button.url(f"🔗 {c}", f"https://t.me/{c.strip('@')}") for c in channels]
+    buttons = [buttons]  # Bungkus biar satu baris
     buttons.append([Button.inline("✅ Saya sudah join semua", b"sfs_check")])
 
     await event.respond(
