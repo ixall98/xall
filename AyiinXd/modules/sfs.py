@@ -4,7 +4,7 @@ from AyiinXd.modules.sql_helper.sfs_sql import add_sfs_channels, get_sfs_channel
 from telethon.tl.functions.channels import JoinChannelRequest, GetParticipantRequest
 from telethon.tl.types import ChannelParticipantSelf
 from telethon import events, Button
-from AyiinXd import BOTLOG_CHATID, CMD_HANDLER as cmd, CMD_HELP, LOGS
+from AyiinXd import BOTLOG_CHATID, CMD_HANDLER as cmd, CMD_HELP, LOGS, tgbot
 
 USER_STEP = {}
 
