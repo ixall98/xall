@@ -21,6 +21,7 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineQueryResultArticle, InputTextMessageContent, InlineKeyboardMarkup, InlineKeyboardButton
 import re
 import os
+from AyiinXd import tgbot
 
 tgbot.start()
 
