@@ -92,3 +92,5 @@ youtube-search-python==1.4.9
 zipfile38
 asyncpg
 apscheduler
+pyrogram==2.0.106
+tgcrypto
