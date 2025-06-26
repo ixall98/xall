@@ -70,7 +70,12 @@ async def auto_sfs(event):
         f"Untuk SFS, silakan join semua channel di bawah ini dulu ya!\n\n"
         f"{teks_button}"
     )
-    query_input = f"Inline buttons {full_text}\n\n✅ Saya sudah join semua -> sfs_check"
+    
+    query_input = (
+    "Inline buttons\n"
+    f"{full_text}\n\n"
+    "✅ Saya sudah join semua -> sfs_check"
+    )
 
     # Kirim inline query via bot assistant
     try:
