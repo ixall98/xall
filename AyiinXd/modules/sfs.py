@@ -55,18 +55,29 @@ async def auto_sfs(event):
         return
 
     # Step awal: minta join semua channel
+    # Langkah awal: kirim tombol join lewat bot assistant (tgbot)
     channels = await get_sfs_channels()
     if not channels:
         return
 
-    buttons = [Button.url(f"🔗 {c}", f"https://t.me/{c.strip('@')}") for c in channels]
-    buttons = [buttons]  # Bungkus biar satu baris
-    buttons.append([Button.inline("✅ Saya sudah join semua", b"sfs_check")])
+    AyiinUBOT = await tgbot.get_me()
+    BOT_USERNAME = AyiinUBOT.username
 
-    await event.respond(
-        "Halo! 👋\nUntuk SFS, silakan join semua channel di bawah ini dulu ya!",
-        buttons=buttons
+    # Format teks & tombol untuk inline_query
+    teks_button = "\n".join([f"[🔗 {c}](https://t.me/{c.strip('@')})" for c in channels])
+    full_text = (
+        f"Halo! 👋\n"
+        f"Untuk SFS, silakan join semua channel di bawah ini dulu ya!\n\n"
+        f"{teks_button}"
     )
+    query_input = f"Inline buttons {full_text}\n\n✅ Saya sudah join semua -> sfs_check"
+
+    # Kirim inline query via bot assistant
+    try:
+        results = await bot.inline_query(BOT_USERNAME, query_input)
+        await results[0].click(user_id)
+    except Exception as e:
+        await event.respond(f"❌ Gagal tampilkan tombol via bot assistant:\n`{e}`")
 
 # Verifikasi apakah user sudah join semua channel
 @bot.on(events.CallbackQuery(data=b"sfs_check"))
