@@ -32,7 +32,7 @@ async def list_sfs(event):
     teks = "**Daftar Channel SFS:**\n" + "\n".join(f"- {c}" for c in channels)
     await event.edit(teks)
 
-@client.on(events.NewMessage(incoming=True, func=lambda e: e.is_private))
+@bot.on(events.NewMessage(incoming=True, func=lambda e: e.is_private))
 async def auto_sfs(event):
     user_id = event.sender_id
     if user_id in USER_STEP:
@@ -62,7 +62,7 @@ async def auto_sfs(event):
         buttons=buttons
     )
 
-@client.on(events.CallbackQuery(data=b"sfs_check"))
+@bot.on(events.CallbackQuery(data=b"sfs_check"))
 async def verify_join(event):
     user = await event.get_sender()
     user_id = user.id
