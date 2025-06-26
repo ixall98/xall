@@ -1,4 +1,5 @@
-from AyiinXd.ayiin import ayiin_cmd, bot # pastikan ayiin_cmd dan client sesuai
+from AyiinXd.ayiin import ayiin_cmd
+from AyiinXd import bot
 from telethon.tl.functions.channels import JoinChannelRequest, GetParticipantRequest
 from telethon.tl.types import ChannelParticipantSelf
 from AyiinXd.modules.sql_helper.sfs_sql import add_sfs_channels, get_sfs_channels, delete_sfs_channels
