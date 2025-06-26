@@ -1,9 +1,11 @@
 from AyiinXd.ayiin import ayiin_cmd, bot as client  # pastikan ayiin_cmd dan client sesuai
 from telethon.tl.functions.channels import JoinChannelRequest, GetParticipantRequest
 from telethon.tl.types import ChannelParticipantSelf
-from sql_helper.sfs_sql import add_sfs_channels, get_sfs_channels, delete_sfs_channels
+from AyiinXd.modules.sql_helper.sfs_sql import add_sfs_channels, get_sfs_channels, delete_sfs_channels
 from telethon import events, Button
-from config import LOG_GROUP_ID
+from AyiinXd import BOTLOG_CHATID
+from AyiinXd import CMD_HANDLER as cmd
+from AyiinXd import CMD_HELP, LOGS
 
 USER_STEP = {}  # nyimpen state user sementara
 
