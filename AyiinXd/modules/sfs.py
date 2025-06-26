@@ -1,30 +1,27 @@
 from AyiinXd.ayiin import ayiin_cmd
-from AyiinXd import bot
-from AyiinXd.modules.sql_helper.sfs_sql import add_sfs_channels, get_sfs_channels, delete_sfs_channels
+from AyiinXd import bot, tgbot, BOTLOG_CHATID, CMD_HANDLER as cmd, CMD_HELP
+from telethon import events
 from telethon.tl.functions.channels import JoinChannelRequest, GetParticipantRequest
 from telethon.tl.types import ChannelParticipantSelf
-from telethon import events, Button
-from AyiinXd import BOTLOG_CHATID, CMD_HANDLER as cmd, CMD_HELP, LOGS, tgbot
+from telethon.utils import get_display_name
+from AyiinXd.modules.sql_helper.sfs_sql import add_sfs_channels, get_sfs_channels, delete_sfs_channels
 
 USER_STEP = {}
 
-# Set channel SFS
 @ayiin_cmd(pattern="setsfs(?: |$)(.*)")
 async def set_sfs(event):
     args = event.pattern_match.group(1)
     if not args:
-        return await event.edit(f"**Contoh:** `{cmd}setsfs @channel1 @channel2 ...`")
+        return await event.edit("**Gunakan:** `.setsfs @channel1 @channel2 ...`")
     channels = args.split()
     await add_sfs_channels(channels)
-    await event.edit("✅ Daftar channel SFS berhasil disimpan.")
+    await event.edit("✅ Daftar channel untuk SFS berhasil disimpan.")
 
-# Hapus semua channel SFS
 @ayiin_cmd(pattern="delsfs$")
 async def del_sfs(event):
     await delete_sfs_channels()
     await event.edit("✅ Semua channel SFS telah dihapus.")
 
-# Lihat daftar channel SFS
 @ayiin_cmd(pattern="listsfs$")
 async def list_sfs(event):
     channels = await get_sfs_channels()
@@ -33,11 +30,10 @@ async def list_sfs(event):
     teks = "**Daftar Channel SFS:**\n" + "\n".join(f"- {c}" for c in channels)
     await event.edit(teks)
 
-# Auto respon PM
 @bot.on(events.NewMessage(incoming=True, func=lambda e: e.is_private))
 async def auto_sfs(event):
     user_id = event.sender_id
-    # Step kirim channel
+
     if user_id in USER_STEP:
         step = USER_STEP[user_id]
         if step["status"] == "wait_channel":
@@ -47,51 +43,35 @@ async def auto_sfs(event):
                 await event.reply("✅ Berhasil join ke channel kamu. Terima kasih SFS-nya!")
                 await bot.send_message(
                     BOTLOG_CHATID,
-                    f"👥 **SFS Baru**\n👤 [{event.sender.first_name}](tg://user?id={user_id})\n📣 Channel: `{ch_link}`"
+                    f"👥 **SFS Baru**\n👤 [{get_display_name(event.sender)}](tg://user?id={user_id})\n📣 Channel: `{ch_link}`"
                 )
             except Exception as e:
-                await event.reply(f"❌ Gagal join ke channel kamu.\nError: `{e}`")
+                await event.reply(f"Gagal join ke channel kamu.\nError: {e}")
             del USER_STEP[user_id]
         return
 
-    # Step awal: minta join semua channel
-    # Langkah awal: kirim tombol join lewat bot assistant (tgbot)
+    # Langkah awal: pakai inline bot untuk munculin tombol
     channels = await get_sfs_channels()
     if not channels:
         return
 
     AyiinUBOT = await tgbot.get_me()
     BOT_USERNAME = AyiinUBOT.username
+    channel_list = "\n".join(f"🔗 {c}" for c in channels)
+    sfs_text = f"Halo! 👋\nUntuk SFS, silakan join semua channel di bawah ini dulu ya!\n\n{channel_list}\n\n✅ Saya sudah join semua -> sfs_check"
 
-    # Format teks & tombol untuk inline_query
-    teks_button = "\n".join([f"[🔗 {c}](https://t.me/{c.strip('@')})" for c in channels])
-    full_text = (
-        f"Halo! 👋\n"
-        f"Untuk SFS, silakan join semua channel di bawah ini dulu ya!\n\n"
-        f"{teks_button}"
-    )
-    
-    query_input = (
-    "Inline buttons\n"
-    f"{full_text}\n\n"
-    "✅ Saya sudah join semua -> sfs_check"
-    )
-
-    # Kirim inline query via bot assistant
     try:
-        results = await bot.inline_query(BOT_USERNAME, query_input)
-        await results[0].click(user_id)
+        results = await bot.inline_query(BOT_USERNAME, f"Inline buttons {sfs_text}")
+        await results[0].click(event.chat_id)
     except Exception as e:
-        await event.respond(f"❌ Gagal tampilkan tombol via bot assistant:\n`{e}`")
+        await event.reply(f"Gagal munculin tombol: {e}")
 
-# Verifikasi apakah user sudah join semua channel
 @bot.on(events.CallbackQuery(data=b"sfs_check"))
 async def verify_join(event):
     user = await event.get_sender()
     user_id = user.id
     channels = await get_sfs_channels()
     belum = []
-
     for ch in channels:
         try:
             result = await bot(GetParticipantRequest(ch, user_id))
@@ -107,5 +87,5 @@ async def verify_join(event):
         await event.answer("Belum semua channel kamu join", alert=True)
         await event.edit(msg)
     else:
-        await event.edit("✅ Terima kasih! Sekarang kirim channel kamu (format `@namachannel`):")
+        await event.edit("✅ Terima kasih! Sekarang kirim channel kamu (pakai format `@namachannel`):")
         USER_STEP[user_id] = {"status": "wait_channel"}
