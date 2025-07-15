@@ -1,4 +1,4 @@
-# repack by blue. #
+# repack by ixall. #
 """ Userbot start point """
 
 
@@ -17,51 +17,8 @@ from AyiinXd.clients import ayiin_userbot_on, multiayiin
 from AyiinXd.core.git import git
 from AyiinXd.modules import ALL_MODULES
 from AyiinXd.ayiin import AyiinDB, HOSTED_ON, autobot, autopilot, ayiin_version
-from pyrogram import Client, filters
-from pyrogram.types import InlineQueryResultArticle, InputTextMessageContent, InlineKeyboardMarkup, InlineKeyboardButton
-import re
-import os
-from AyiinXd import tgbot
 
-tgbot.start()
 
-tgbot = Client(
-    "AyiinBot",
-    api_id=int(os.environ.get("API_ID")),
-    api_hash=os.environ.get("API_HASH"),
-    bot_token=os.environ.get("BOT_TOKEN")
-)
-
-@tgbot.on_inline_query(filters.regex("(?i)^Inline buttons "))
-async def inline_button_handler(client, inline_query):
-    text = inline_query.query.replace("Inline buttons ", "")
-    
-    # Pisah tombol (berdasar baris newline)
-    lines = text.split("\n")
-    buttons = []
-    content_lines = []
-    for line in lines:
-        if line.startswith("🔗 @"):
-            ch = line.strip("🔗 ").strip()
-            buttons.append([InlineKeyboardButton(text=ch, url=f"https://t.me/{ch.strip('@')}")])
-        elif "-> sfs_check" in line:
-            buttons.append([InlineKeyboardButton("✅ Saya sudah join semua", callback_data="sfs_check")])
-        else:
-            content_lines.append(line)
-
-    msg_text = "\n".join(content_lines)
-    
-    await inline_query.answer(
-        results=[
-            InlineQueryResultArticle(
-                title="Kirim pesan dengan tombol",
-                input_message_content=InputTextMessageContent(msg_text),
-                reply_markup=InlineKeyboardMarkup(buttons)
-            )
-        ],
-        cache_time=1
-                            )
-    
 try:
     for module_name in ALL_MODULES:
         imported_module = import_module(f"AyiinXd.modules.{module_name}")
@@ -72,8 +29,8 @@ try:
     LOGS.info(f"Telethon Version - {version.__version__} [Layer: {LAYER}]")
     LOGS.info(f"PyTgCalls Version - {pytgcalls}")
     LOGS.info(f"Userbot Version - {ubotversion} •[{adB.name}]•")
-    LOGS.info(f"IXALL Version - {ayiin_version} •[{HOSTED_ON}]•")
-    LOGS.info("[🔥 BERHASIL DIAKTIFKAN! 🔥]")
+    LOGS.info(f"Mutya Version - {ayiin_version} •[{HOSTED_ON}]•")
+    LOGS.info("[💀 BERHASIL DIAKTIFKAN! 💀]")
 except (ConnectionError, KeyboardInterrupt, NotImplementedError, SystemExit):
     pass
 except BaseException as e:
