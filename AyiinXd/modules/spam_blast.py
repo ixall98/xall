@@ -6,6 +6,8 @@ from asyncio import sleep
 from telethon.tl.functions.messages import ImportChatInviteRequest
 from telethon.tl.functions.messages import GetMessagesRequest
 from telethon.tl.types import InputPeerChannel, InputMessageID
+from telethon.errors import FloodWaitError
+from datetime import datetime
 import re
 import asyncio
 
@@ -26,79 +28,89 @@ async def setgrup(event):
 
 active_spams = {}
 
-@ayiin_cmd(pattern=r"onspam (\d+)\|(.+?)\|([\s\S]*)")
+@ayiin_cmd(pattern=r"onspam (\d+)\s+(\S+)\s+([\s\S]+)")
 async def onspamloop(event):
     delay = int(event.pattern_match.group(1))
-    nama = event.pattern_match.group(2).strip()
-    teks = event.pattern_match.group(3).strip()
+    nama  = event.pattern_match.group(2).strip()
+    teks  = event.pattern_match.group(3).strip()
 
     spam_sql.update_list(nama, "spam", delay, teks)
-
     if nama in active_spams:
         return await event.edit(f"🚫 spam `{nama}` sudah berjalan!")
 
     reply = await event.get_reply_message()
     media = reply.media if reply and reply.media else None
-    grups = spam_sql.get_groups(nama)
-    if not grups:
-        return await event.edit(f"❌ List `{nama}` tidak memiliki grup.")
-
-    await event.edit(f"▶️ Memulai spam `{nama}`...")
+    await event.edit(f"▶️ Memulai spam `{nama}`…")
 
     async def spam_loop():
         try:
             while True:
+                grups = spam_sql.get_groups(nama)            # selalu refresh
                 tasks = []
                 for g in grups:
-                    if media:
-                        tasks.append(event.client.send_file(g, media, caption=teks or None))
-                    else:
-                        tasks.append(event.client.send_message(g, teks))
-                await asyncio.gather(*tasks)
+                    async def send(gdest):                   # fungsi mini agar try/except per-grup
+                        try:
+                            if media:
+                                await event.client.send_file(gdest, media,
+                                                            caption=teks or "", parse_mode="html")
+                            else:
+                                await event.client.send_message(gdest, teks, parse_mode="html")
+                            print(f"[SPAM] {nama}->{gdest} {datetime.now():%H:%M:%S}")
+                        except FloodWaitError as e:
+                            print(f"[FLOOD] {gdest}: tunggu {e.seconds}s")
+                            await asyncio.sleep(e.seconds)
+                        except Exception as e:
+                            print(f"[ERR] spam {gdest}: {e}")
+                    tasks.append(send(g))
+                # jalankan semua, tapi jangan crash bila satu error
+                await asyncio.gather(*tasks, return_exceptions=True)
                 await asyncio.sleep(delay)
         except asyncio.CancelledError:
-            print(f"[SPAM] Loop spam `{nama}` dihentikan.")
+            print(f"[SPAM] Loop `{nama}` dihentikan.")
 
-    task = asyncio.create_task(spam_loop())
-    active_spams[nama] = task
+    active_spams[nama] = asyncio.create_task(spam_loop())
 
-@ayiin_cmd(pattern=r"onfw (\d+)\|(.+?)\|(https?://t\.me/[^\s]+)")
+@ayiin_cmd(pattern=r"onfw (\d+)\s+(\S+)\s+(https?://t\.me/[^\s]+)")
 async def onfwloop(event):
     delay = int(event.pattern_match.group(1))
-    nama = event.pattern_match.group(2).strip()
-    link = event.pattern_match.group(3).strip()
+    nama  = event.pattern_match.group(2).strip()
+    link  = event.pattern_match.group(3).strip()
 
     spam_sql.update_list(nama, "forward", delay, link)
-    
     if nama in active_spams:
         return await event.edit(f"🚫 spam forward `{nama}` sudah berjalan!")
 
-    grups = spam_sql.get_groups(nama)
-    if not grups:
-        return await event.edit(f"❌ List `{nama}` tidak memiliki grup.")
-
-    match = re.match(r"https://t.me/(c/)?(-?\d+|\w+)/(\d+)", link)
-    if not match:
+    m = re.match(r"https://t.me/(c/)?(-?\d+|\w+)/(\d+)", link)
+    if not m:
         return await event.edit("❌ Link tidak valid!")
 
-    chat_part = match.group(2)
-    msg_id = int(match.group(3))
-    chat_id = int("-100" + chat_part) if match.group(1) == "c/" else (int(chat_part) if chat_part.isdigit() else chat_part)
+    chat_part, msg_id = m.group(2), int(m.group(3))
+    chat_id = int("-100"+chat_part) if m.group(1)=="c/" else (int(chat_part) if chat_part.isdigit() else chat_part)
     msg = await event.client.get_messages(chat_id, ids=msg_id)
+    await event.edit(f"▶️ Memulai forward `{nama}`…")
 
-    await event.edit(f"▶️ Memulai forward spam `{nama}`...")
-
-    async def forward_loop():
+    async def fw_loop():
         try:
             while True:
-                tasks = [event.client.forward_messages(g, msg) for g in grups]
-                await asyncio.gather(*tasks)
+                grups = spam_sql.get_groups(nama)
+                tasks = []
+                for g in grups:
+                    async def fwd(gdest):
+                        try:
+                            await event.client.forward_messages(gdest, msg)
+                            print(f"[FW] {nama}->{gdest} {datetime.now():%H:%M:%S}")
+                        except FloodWaitError as e:
+                            print(f"[FLOOD] {gdest}: tunggu {e.seconds}s")
+                            await asyncio.sleep(e.seconds)
+                        except Exception as e:
+                            print(f"[ERR] fw {gdest}: {e}")
+                    tasks.append(fwd(g))
+                await asyncio.gather(*tasks, return_exceptions=True)
                 await asyncio.sleep(delay)
         except asyncio.CancelledError:
-            print(f"[FW] Loop spam `{nama}` dihentikan.")
+            print(f"[FW] Loop `{nama}` dihentikan.")
 
-    task = asyncio.create_task(forward_loop())
-    active_spams[nama] = task
+    active_spams[nama] = asyncio.create_task(fw_loop())
 
 @ayiin_cmd(pattern=r"stopspam (.+)")
 async def stopspam(event):
