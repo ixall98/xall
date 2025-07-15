@@ -8,6 +8,7 @@ from telethon.tl.functions.messages import GetMessagesRequest
 from telethon.tl.types import InputPeerChannel, InputMessageID
 from telethon.errors import FloodWaitError
 from datetime import datetime
+from AyiinXd import BOTLOG_CHATID
 import re
 import asyncio
 
