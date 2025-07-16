@@ -55,6 +55,7 @@ async def init_sfs_db():
         sfs_db = SFSDatabase(pool)
         sfs_module.sfs_db = sfs_db
         sfs_module.bot = bot
+        sfs_module.init_sfs_handlers(bot)     # ⬅️ INI PENTING
         LOOP.create_task(sfs_module.sfs_checker())
         LOGS.info("[SFS] PostgreSQL berhasil terkoneksi dan tabel siap.")
     except Exception as e:
