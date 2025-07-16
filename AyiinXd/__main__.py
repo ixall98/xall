@@ -1,8 +1,9 @@
 # repack by ixall. #
 """ Userbot start point """
 
-
 import sys
+import os
+import asyncpg
 from importlib import import_module
 from platform import python_version
 
@@ -18,6 +19,30 @@ from AyiinXd.core.git import git
 from AyiinXd.modules import ALL_MODULES
 from AyiinXd.ayiin import AyiinDB, HOSTED_ON, autobot, autopilot, ayiin_version
 
+# ────── 🌐 INISIALISASI DB UNTUK SFS ──────
+from sql_helper.sfs_sql import SFSDatabase
+import AyiinXd.modules.sfs as sfs_module  # inject bot dan db
+sfs_db = None
+
+async def init_sfs_db():
+    global sfs_db
+    dsn = os.environ.get("DATABASE_URL")
+    if dsn is None:
+        LOGS.warning("[SFS] DATABASE_URL tidak ditemukan di env!")
+        return
+
+    dsn = dsn.replace("postgres://", "postgresql://", 1)
+    try:
+        pool = await asyncpg.create_pool(dsn)
+        sfs_db = SFSDatabase(pool)
+        sfs_module.sfs_db = sfs_db
+        sfs_module.bot = bot
+        LOOP.create_task(sfs_module.sfs_checker())
+        LOGS.info("[SFS] PostgreSQL berhasil terkoneksi dan aktif.")
+    except Exception as e:
+        LOGS.warning(f"[SFS] Gagal konek ke database: {e}")
+
+# ─────────────────────────────────────────
 
 try:
     for module_name in ALL_MODULES:
@@ -37,9 +62,11 @@ except BaseException as e:
     LOGS.info(str(e), exc_info=True)
     sys.exit(1)
 
-
+# start userbot
 LOOP.run_until_complete(ayiin_userbot_on())
-LOOP.run_until_complete(init_sfs_db())  # inisialisasi DB SFSLOOP.run_until_complete(ajg())
+LOOP.run_until_complete(init_sfs_db())  # init koneksi DB SFS
+LOOP.run_until_complete(ajg())
+
 if not BOTLOG_CHATID:
     LOOP.run_until_complete(autopilot())
 if not BOT_TOKEN:
