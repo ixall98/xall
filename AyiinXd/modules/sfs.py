@@ -10,6 +10,9 @@ from AyiinXd.modules.sql_helper.sfs_sql import SFSDatabase
 
 sfs_db: SFSDatabase
 
+sfs_db = None  # akan diisi dari __main__.py
+bot = None     # akan diisi dari __main__.py
+
 WELCOME_TEMPLATE = (
     "Halo {name}!\n\n"
     "Untuk tukeran subscribe (SFS), silakan join channel berikut dulu ya:\n"
