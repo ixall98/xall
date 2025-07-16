@@ -20,7 +20,7 @@ from AyiinXd.modules import ALL_MODULES
 from AyiinXd.ayiin import AyiinDB, HOSTED_ON, autobot, autopilot, ayiin_version
 
 # ────── 🌐 INISIALISASI DB UNTUK SFS ──────
-from sql_helper.sfs_sql import SFSDatabase
+from AyiinXd.modules.sql_helper.sfs_sql import SFSDatabase
 import AyiinXd.modules.sfs as sfs_module  # inject bot dan db
 sfs_db = None
 
