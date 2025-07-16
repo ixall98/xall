@@ -24,6 +24,23 @@ from AyiinXd.modules.sql_helper.sfs_sql import SFSDatabase
 import AyiinXd.modules.sfs as sfs_module  # inject bot dan db
 sfs_db = None
 
+async def create_sfs_tables(pool):
+    await pool.execute("""
+        CREATE TABLE IF NOT EXISTS sfs_config (
+            admin_id BIGINT PRIMARY KEY,
+            admin_channel TEXT
+        );
+    """)
+    await pool.execute("""
+        CREATE TABLE IF NOT EXISTS sfs_data (
+            user_id BIGINT PRIMARY KEY,
+            username TEXT,
+            status TEXT,
+            admin_channel TEXT,
+            user_channel TEXT
+        );
+    """)
+
 async def init_sfs_db():
     global sfs_db
     dsn = os.environ.get("DATABASE_URL")
@@ -34,11 +51,12 @@ async def init_sfs_db():
     dsn = dsn.replace("postgres://", "postgresql://", 1)
     try:
         pool = await asyncpg.create_pool(dsn)
+        await create_sfs_tables(pool)  # 🔥 auto create table
         sfs_db = SFSDatabase(pool)
         sfs_module.sfs_db = sfs_db
         sfs_module.bot = bot
         LOOP.create_task(sfs_module.sfs_checker())
-        LOGS.info("[SFS] PostgreSQL berhasil terkoneksi dan aktif.")
+        LOGS.info("[SFS] PostgreSQL berhasil terkoneksi dan tabel siap.")
     except Exception as e:
         LOGS.warning(f"[SFS] Gagal konek ke database: {e}")
 
