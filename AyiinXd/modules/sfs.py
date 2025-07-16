@@ -93,3 +93,8 @@ async def sfs_checker():
                 except UserNotParticipantError:
                     await bot.send_message(admin_id, LEFT_ALERT.format(username=username, channel_admin=admin_channel))
         await asyncio.sleep(300)
+
+def init_sfs_handlers(client):
+    global bot
+    bot = client
+    client.add_event_handler(sfs_pm, events.NewMessage(incoming=True, func=lambda e: e.is_private))
