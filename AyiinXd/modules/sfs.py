@@ -3,7 +3,7 @@ from telethon import events
 from telethon.tl.functions.channels import JoinChannelRequest, GetParticipantRequest
 from telethon.errors import UserNotParticipantError
 
-from sql_helper.sfs_sql import SFSDatabase
+from AyiinXd.modules.sql_helper.sfs_sql import SFSDatabase
 
 sfs_db: SFSDatabase
 bot  # client Telethon
