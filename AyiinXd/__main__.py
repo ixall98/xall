@@ -39,7 +39,7 @@ except BaseException as e:
 
 
 LOOP.run_until_complete(ayiin_userbot_on())
-LOOP.run_until_complete(ajg())
+LOOP.run_until_complete(init_sfs_db())  # inisialisasi DB SFSLOOP.run_until_complete(ajg())
 if not BOTLOG_CHATID:
     LOOP.run_until_complete(autopilot())
 if not BOT_TOKEN:
