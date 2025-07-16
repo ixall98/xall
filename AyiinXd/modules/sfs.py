@@ -2,11 +2,13 @@ import asyncio
 from telethon import events
 from telethon.tl.functions.channels import JoinChannelRequest, GetParticipantRequest
 from telethon.errors import UserNotParticipantError
-
+from AyiinXd import CMD_HANDLER as cmd
+from AyiinXd import CMD_HELP
+from AyiinXd.ayiin import ayiin_cmd
+from AyiinXd import bot
 from AyiinXd.modules.sql_helper.sfs_sql import SFSDatabase
 
 sfs_db: SFSDatabase
-bot  # client Telethon
 
 WELCOME_TEMPLATE = (
     "Halo {name}!\n\n"
