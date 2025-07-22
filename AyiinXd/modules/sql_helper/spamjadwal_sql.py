@@ -1,89 +1,79 @@
-import sqlite3
+import asyncpg
+import os
 
-conn = sqlite3.connect("spamjadwal.db")
-cursor = conn.cursor()
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-# Buat tabel list spam dan grup
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS spam_list (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL
-)
-""")
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS spam_groups (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    list_name TEXT NOT NULL,
-    group_username TEXT NOT NULL,
-    FOREIGN KEY(list_name) REFERENCES spam_list(name)
-)
-""")
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS user_timezone (
-    user_id TEXT PRIMARY KEY,
-    timezone TEXT NOT NULL
-)
-""")
-
-conn.commit()
+async def ensure_tables():
+    conn = await asyncpg.connect(DATABASE_URL)
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS spam_list (
+            name TEXT PRIMARY KEY
+        );
+    """)
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS spam_groups (
+            id SERIAL PRIMARY KEY,
+            list_name TEXT NOT NULL,
+            group_username TEXT NOT NULL,
+            FOREIGN KEY (list_name) REFERENCES spam_list(name) ON DELETE CASCADE
+        );
+    """)
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_timezone (
+            user_id TEXT PRIMARY KEY,
+            timezone TEXT NOT NULL
+        );
+    """)
+    await conn.close()
 
 
-def add_group_to_list(namalist: str, group: str):
-    cursor.execute("INSERT OR IGNORE INTO spam_list (name) VALUES (?)", (namalist,))
-    cursor.execute(
-        "INSERT OR IGNORE INTO spam_groups (list_name, group_username) VALUES (?, ?)",
-        (namalist, group),
-    )
-    conn.commit()
+async def add_group_to_list(namalist: str, group: str):
+    conn = await asyncpg.connect(DATABASE_URL)
+    await conn.execute("INSERT INTO spam_list(name) VALUES($1) ON CONFLICT DO NOTHING", namalist)
+    await conn.execute("""
+        INSERT INTO spam_groups(list_name, group_username)
+        VALUES ($1, $2)
+        ON CONFLICT DO NOTHING
+    """, namalist, group)
+    await conn.close()
 
-
-def remove_group_from_list(namalist: str, group: str):
-    cursor.execute(
-        "DELETE FROM spam_groups WHERE list_name = ? AND group_username = ?",
-        (namalist, group),
-    )
-    # Jika list kosong, hapus juga list
-    cursor.execute(
-        "SELECT COUNT(*) FROM spam_groups WHERE list_name = ?", (namalist,)
-    )
-    count = cursor.fetchone()[0]
+async def remove_group_from_list(namalist: str, group: str):
+    conn = await asyncpg.connect(DATABASE_URL)
+    await conn.execute("DELETE FROM spam_groups WHERE list_name=$1 AND group_username=$2", namalist, group)
+    count = await conn.fetchval("SELECT COUNT(*) FROM spam_groups WHERE list_name=$1", namalist)
     if count == 0:
-        cursor.execute("DELETE FROM spam_list WHERE name = ?", (namalist,))
-    conn.commit()
+        await conn.execute("DELETE FROM spam_list WHERE name=$1", namalist)
+    await conn.close()
 
+async def get_groups_by_list(namalist: str):
+    conn = await asyncpg.connect(DATABASE_URL)
+    rows = await conn.fetch("SELECT group_username FROM spam_groups WHERE list_name=$1", namalist)
+    await conn.close()
+    return [r['group_username'] for r in rows]
 
-def get_groups_by_list(namalist: str):
-    cursor.execute(
-        "SELECT group_username FROM spam_groups WHERE list_name = ?", (namalist,)
-    )
-    rows = cursor.fetchall()
-    return [r[0] for r in rows] if rows else []
+async def get_all_lists():
+    conn = await asyncpg.connect(DATABASE_URL)
+    rows = await conn.fetch("SELECT name FROM spam_list")
+    await conn.close()
+    return [type("ListObj", (object,), {"name": r["name"]})() for r in rows]
 
+async def remove_list(namalist: str):
+    conn = await asyncpg.connect(DATABASE_URL)
+    await conn.execute("DELETE FROM spam_groups WHERE list_name=$1", namalist)
+    await conn.execute("DELETE FROM spam_list WHERE name=$1", namalist)
+    await conn.close()
 
-def get_all_lists():
-    cursor.execute("SELECT name FROM spam_list")
-    rows = cursor.fetchall()
-    # Return list of objects with attribute .name
-    return [type("ListObj", (object,), {"name": r[0]})() for r in rows]
+async def set_user_timezone(user_id: str, timezone: str):
+    conn = await asyncpg.connect(DATABASE_URL)
+    await conn.execute("""
+        INSERT INTO user_timezone(user_id, timezone)
+        VALUES($1, $2)
+        ON CONFLICT(user_id) DO UPDATE SET timezone=excluded.timezone
+    """, user_id, timezone)
+    await conn.close()
 
-
-def remove_list(namalist: str):
-    cursor.execute("DELETE FROM spam_groups WHERE list_name = ?", (namalist,))
-    cursor.execute("DELETE FROM spam_list WHERE name = ?", (namalist,))
-    conn.commit()
-
-
-def set_user_timezone(user_id: str, timezone: str):
-    cursor.execute(
-        "INSERT INTO user_timezone(user_id, timezone) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET timezone=excluded.timezone",
-        (user_id, timezone),
-    )
-    conn.commit()
-
-
-def get_user_timezone(user_id: str):
-    cursor.execute("SELECT timezone FROM user_timezone WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
-    return row[0] if row else None
+async def get_user_timezone(user_id: str):
+    conn = await asyncpg.connect(DATABASE_URL)
+    row = await conn.fetchrow("SELECT timezone FROM user_timezone WHERE user_id=$1", user_id)
+    await conn.close()
+    return row["timezone"] if row else None
