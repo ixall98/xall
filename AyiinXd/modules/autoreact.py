@@ -70,24 +70,25 @@ async def _(event):
     await event.reply(text, parse_mode="html")
 
 
-@bot.on(events.NewMessage(incoming=True))
-async def _(event):
-    if not event.is_channel or not event.out:
-        return
+if bot:
+    @bot.on(events.NewMessage(incoming=True))
+    async def _(event):
+        if not event.is_channel or not event.out:
+            return
 
-    chat_id = str(event.chat_id)
-    reacts = get_reacts_by_chat(chat_id)
-    if not reacts:
-        return
+        chat_id = str(event.chat_id)
+        reacts = get_reacts_by_chat(chat_id)
+        if not reacts:
+            return
 
-    for item in reacts:
-        for _ in range(item.jumlah):
-            try:
-                await bot(SendReaction(
-                    peer=event.chat_id,
-                    msg_id=event.id,
-                    reaction=[item.emoji]
-                ))
-                await asyncio.sleep(0.7)
-            except Exception:
-                continue
+        for item in reacts:
+            for _ in range(item.jumlah):
+                try:
+                    await bot(SendReaction(
+                        peer=event.chat_id,
+                        msg_id=event.id,
+                        reaction=[item.emoji]
+                    ))
+                    await asyncio.sleep(0.7)
+                except Exception:
+                    continue
