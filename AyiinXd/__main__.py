@@ -1,9 +1,8 @@
-# repack by ixall. #
+# repack by blue. #
 """ Userbot start point """
 
+
 import sys
-import os
-import asyncpg
 from importlib import import_module
 from platform import python_version
 
@@ -30,19 +29,17 @@ try:
     LOGS.info(f"Telethon Version - {version.__version__} [Layer: {LAYER}]")
     LOGS.info(f"PyTgCalls Version - {pytgcalls}")
     LOGS.info(f"Userbot Version - {ubotversion} •[{adB.name}]•")
-    LOGS.info(f"Mutya Version - {ayiin_version} •[{HOSTED_ON}]•")
-    LOGS.info("[💀 BERHASIL DIAKTIFKAN! 💀]")
+    LOGS.info(f"IXALL Version - {ayiin_version} •[{HOSTED_ON}]•")
+    LOGS.info("[🔥 BERHASIL DIAKTIFKAN! 🔥]")
 except (ConnectionError, KeyboardInterrupt, NotImplementedError, SystemExit):
     pass
 except BaseException as e:
     LOGS.info(str(e), exc_info=True)
     sys.exit(1)
 
-# start userbot
-LOOP.run_until_complete(ayiin_userbot_on())
-LOOP.run_until_complete(init_sfs_db())  # init koneksi DB SFS
-LOOP.run_until_complete(ajg())
 
+LOOP.run_until_complete(ayiin_userbot_on())
+LOOP.run_until_complete(ajg())
 if not BOTLOG_CHATID:
     LOOP.run_until_complete(autopilot())
 if not BOT_TOKEN:
